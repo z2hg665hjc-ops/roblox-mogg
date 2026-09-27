@@ -133,6 +133,7 @@
   .pin-surface.green { color: #b9f04a; }
   .pin-surface.sand { color: #f0dc9a; }
   .pin-surface.rough { color: #f2b26b; }
+  .pin-surface.ice { color: #9fe3ff; }
 
   .power {
     position: absolute; left: 12px; bottom: 16px;
@@ -355,6 +356,78 @@
   }
   @media (prefers-reduced-motion: reduce) { .pop { animation-duration: .9s; } }
 
+  /* title screen */
+  .menu {
+    position: absolute; inset: 0;
+    z-index: 20;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 18px 16px;
+    background: linear-gradient(180deg, rgba(8, 18, 12, .88) 0%, rgba(8, 18, 12, .35) 30%, rgba(8, 18, 12, .2) 55%, rgba(8, 18, 12, .92) 100%);
+    cursor: pointer;
+    transition: opacity .7s ease;
+    -webkit-user-select: none; user-select: none;
+  }
+  .menu.hide { opacity: 0; pointer-events: none; }
+  .menu-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .menu-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .1);
+    border: 1px solid rgba(255, 255, 255, .18);
+    color: var(--ink);
+    font: 800 12px var(--body);
+    letter-spacing: .06em; text-transform: uppercase;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .menu-chip strong { color: var(--accent); font-size: 14px; }
+  button.menu-chip { cursor: pointer; }
+  .menu-center { text-align: center; pointer-events: none; }
+  .logo { display: inline-flex; flex-direction: column; align-items: center; animation: logoIn .9s cubic-bezier(.2, .9, .3, 1.15) both; }
+  .logo-ball {
+    width: 74px; height: 74px; border-radius: 50%;
+    background:
+      radial-gradient(circle at 30% 28%, #fff 0 8%, transparent 9%),
+      radial-gradient(circle at 62% 24%, #ff5a5f 0 6%, transparent 7%),
+      radial-gradient(circle at 42% 58%, #ff5a5f 0 6%, transparent 7%),
+      radial-gradient(circle at 72% 66%, #ff5a5f 0 6%, transparent 7%),
+      radial-gradient(circle at 22% 70%, #ff5a5f 0 5%, transparent 6%),
+      radial-gradient(circle at 35% 30%, #ffffff, #d9dcd2 70%, #aeb3a6);
+    box-shadow: 0 10px 0 rgba(0, 0, 0, .25), 0 0 0 6px rgba(255, 255, 255, .12);
+    margin-bottom: 10px;
+  }
+  .logo-small {
+    font-family: var(--display); font-size: 26px; letter-spacing: .12em; text-transform: uppercase;
+    color: #fff; -webkit-text-stroke: 1px rgba(20, 30, 20, .5); text-shadow: 0 3px 0 rgba(0, 0, 0, .3);
+    line-height: 1;
+  }
+  .logo-big {
+    font-family: var(--display); font-size: 84px; line-height: .95; letter-spacing: .02em;
+    color: var(--accent);
+    -webkit-text-stroke: 2px rgba(60, 40, 5, .55);
+    text-shadow: 0 6px 0 var(--accent-shade), 0 12px 24px rgba(0, 0, 0, .45);
+  }
+  .menu-sub { margin: 14px 0 0; font: 800 13px var(--body); letter-spacing: .12em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .4); }
+  .menu-bottom { text-align: center; pointer-events: none; }
+  .tap {
+    display: inline-block;
+    min-width: 220px;
+    padding: 18px 28px;
+    border-radius: 18px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-family: var(--display); font-size: 26px; letter-spacing: .04em; text-transform: uppercase;
+    box-shadow: 0 6px 0 var(--accent-shade), 0 14px 30px rgba(0, 0, 0, .4);
+    animation: tapPulse 1.6s ease-in-out infinite;
+  }
+  .menu-foot { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+  .app.in-menu .hud, .app.in-menu .clubs, .app.in-menu .tip, .app.in-menu .pin, .app.in-menu .mini { opacity: 0; transition: opacity .4s; }
+  .hud, .clubs, .tip, .pin, .mini { transition: opacity .5s .3s; }
+  @keyframes tapPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes logoIn { from { transform: scale(.6) translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .tap { animation: none; } .logo { animation: none; } }
+
   @keyframes pop {
     from { transform: scale(.86) translateY(14px); opacity: 0; }
     to { transform: none; opacity: 1; }
@@ -430,6 +503,25 @@
       <button class="btn" id="ovBtn" type="button">Next hole</button>
     </div>
   </div>
+
+  <div class="menu" id="menu">
+    <div class="menu-top">
+      <span class="menu-chip" id="menuBest">Par 30 <strong>9 holes</strong></span>
+      <button class="menu-chip" id="menuSound" type="button">Sound on</button>
+    </div>
+    <div class="menu-center">
+      <div class="logo">
+        <div class="logo-ball" aria-hidden="true"></div>
+        <div class="logo-small">Pocket</div>
+        <div class="logo-big">Golf</div>
+      </div>
+      <p class="menu-sub">9 toy holes · chip · putt · bounce</p>
+    </div>
+    <div class="menu-bottom">
+      <div class="tap">Tap to play</div>
+      <p class="menu-foot">Drag back anywhere to hit the ball</p>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -449,6 +541,7 @@
   const miniCanvas = $('mini'), miniCtx = miniCanvas.getContext('2d');
   const popsEl = $('pops'), holeTitle = $('holeTitle'), holeTitleName = $('holeTitleName'), holeTitleSub = $('holeTitleSub');
   const modeBtns = { chip: $('modeChip'), putt: $('modePutt') };
+  const appEl = $('app'), menuEl = $('menu'), menuBest = $('menuBest'), menuSound = $('menuSound');
   const overlay = $('overlay');
   const ov = { eyebrow: $('ovEyebrow'), title: $('ovTitle'), sub: $('ovSub'), body: $('ovBody'), btn: $('ovBtn') };
   const btnSound = $('btnSound');
@@ -473,12 +566,14 @@
     turf: { decel: 7, bounce: 0.42, grip: 0.72, label: 'Turf', cls: '' },
     green: { decel: 6, bounce: 0.42, grip: 0.72, label: 'Green', cls: 'green' },
     sand: { decel: 30, bounce: 0.05, grip: 0.95, label: 'Sand', cls: 'sand' },
+    ice: { decel: 1.5, bounce: 0.3, grip: 0.92, label: 'Ice', cls: 'ice' },
   };
   const PAL = {
     turfA: '#4fc45f', turfB: '#58cf68', green: 0x9be87c, dirt: 0x9a6238, wall: 0xfff4d6,
     sand: 0xf2dc9b, bumper: 0xff5a5f, bumperCap: 0xfff4f4, pad: 0xffb703, padRing: 0xfff1c9,
     flag: 0xff5a5f, pole: 0xffffff, cup: 0x1a2320, cupRim: 0xf5f5f0, cloud: 0xffffff,
     trunk: 0x8a5a36, leafA: 0x2f9e4f, leafB: 0x3fb75f, rock: 0x9aa3ad, bush: 0x49b563,
+    hill: 0x6fdc7a, ice: 0xbfe9ff, water: 0x3aa7e0, poolRim: 0x9ad8f8, launcher: 0x37c26f, arrow: 0xffffff, bar: 0xfff4d6, barEnd: 0xff5a5f,
     accent: 0xf5c84c, lime: '#b9f04a', amber: '#f5c84c', red: '#e5533d',
   };
 
@@ -486,47 +581,50 @@
   // Same-height platforms that overlap merge into one shape. "open" edges (n s e w) get no wall.
   // path: the route the camera follows, tee to hole.
   const HOLES = [
-    { name: 'First Bend', par: 2, tee: [4, 3], hole: [18, 13], hint: 'Drag back and let go. The camera follows the route',
+    { name: 'First Bend', par: 2, tee: [4, 3], hole: [18, 13], hint: 'Drag back and let go. Roll over the hill to the flag',
       plats: [{ r: [0, 0, 8, 16], e: 0 }, { r: [0, 10, 22, 16], e: 0 }],
       path: [[4, 3], [4, 13], [18, 13]],
-      deco: [[1.5, 1.5, 'tree'], [21, 15, 'tree'], [12, 15, 'bush'], [6.5, 1.5, 'rock']] },
-    { name: 'Zigzag', par: 3, tee: [4, 3], hole: [18, 24], hint: 'Right, then up. Chip the corners',
+      hills: [[12, 13, 2.6, 0.8]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'rock'], [1.5, 14.5, 'tree'], [21, 15, 'tree'], [21, 11, 'bush'], [12, 15.3, 'bush'], [6.6, 8, 'tree']] },
+    { name: 'Zigzag', par: 3, tee: [4, 3], hole: [18, 24], hint: 'Right, then up. The corner is icy',
       plats: [{ r: [0, 0, 8, 12], e: 0 }, { r: [4, 8, 20, 14], e: 0 }, { r: [14, 12, 22, 28], e: 0 }],
       path: [[4, 3], [4, 11], [18, 11], [18, 24]],
-      sand: [[14, 18, 17, 21]],
-      deco: [[1.5, 10.5, 'tree'], [19, 9.5, 'rock'], [20.5, 26.5, 'tree'], [15.5, 26.5, 'bush'], [1.5, 1.5, 'bush']] },
-    { name: 'Gap Turn', par: 3, tee: [4, 3], hole: [17, 17], hint: 'Chip over the gap, then turn right',
+      sand: [[14, 18, 17, 21]], ice: [[14, 12.5, 22, 16]],
+      deco: [[1.5, 10.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 1.5, 'tree'], [19, 9.5, 'rock'], [20.5, 26.5, 'tree'], [15.5, 26.5, 'bush'], [20.8, 20, 'tree'], [8, 13, 'tree']] },
+    { name: 'Gap Turn', par: 3, tee: [4, 3], hole: [17, 17], hint: 'Chip the gap, turn right, and mind the pond',
       plats: [{ r: [0, 0, 8, 10], e: 0, open: 'n' }, { r: [0, 13, 8, 20], e: 0, open: 's' }, { r: [6, 14, 20, 20], e: 0 }],
       path: [[4, 3], [4, 16], [17, 17]],
-      deco: [[1.5, 18.5, 'tree'], [18.5, 15.5, 'rock'], [1.5, 1.5, 'bush'], [6.5, 8.5, 'rock']] },
-    { name: 'Snake', par: 4, tee: [4, 3], hole: [3, 25], hint: 'Up, right, up, left. Mind the bumper',
+      pools: [[11.5, 15.5, 1.5]],
+      deco: [[1.5, 18.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 8.5, 'rock'], [6.5, 19, 'tree'], [18.5, 15.2, 'rock'], [13, 19, 'tree'], [18.8, 19, 'bush']] },
+    { name: 'Snake', par: 4, tee: [4, 3], hole: [3, 25], hint: 'Up, right, up, left. Time the spinner',
       plats: [{ r: [0, 0, 8, 10], e: 0 }, { r: [0, 8, 18, 14], e: 0 }, { r: [12, 12, 18, 24], e: 0 }, { r: [0, 22, 18, 28], e: 0 }],
       path: [[4, 3], [4, 11], [15, 11], [15, 25], [3, 25]],
-      bumpers: [[9, 11]], sand: [[13, 17, 17, 19]],
-      deco: [[1.5, 1.5, 'tree'], [16.5, 26.5, 'tree'], [1.5, 12.5, 'rock'], [13.5, 22.5, 'bush'], [6.5, 9, 'bush']] },
-    { name: 'Island Hop', par: 4, tee: [4, 3], hole: [6, 23], hint: 'Four islands. Chip from one to the next',
+      bumpers: [[9, 11]], sand: [[13, 17, 17, 19]], spinners: [[15, 21, 4.5, 1.6]], hills: [[9, 25, 2.4, 0.8]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'bush'], [1.5, 12.5, 'rock'], [6.5, 9, 'bush'], [16.5, 26.5, 'tree'], [13.5, 22.5, 'bush'], [1.5, 26.5, 'tree'], [13.2, 14.5, 'tree'], [16.8, 15, 'rock']] },
+    { name: 'Island Hop', par: 4, tee: [4, 3], hole: [6, 23], hint: 'Four islands. The green arrow launches you across',
       plats: [{ r: [0, 0, 8, 8], e: 0 }, { r: [10, 5, 18, 13], e: 0 }, { r: [12, 15, 20, 23], e: 0 }, { r: [2, 19, 10, 27], e: 0 }],
       path: [[4, 3], [14, 9], [16, 19], [6, 23]],
-      deco: [[1.5, 6.5, 'tree'], [16.5, 6.5, 'rock'], [18.5, 21.5, 'bush'], [3.5, 25.5, 'tree']] },
-    { name: 'Stairway', par: 4, tee: [4, 3], hole: [7, 25], hint: 'Every turn is a step up. Chip onto each floor',
+      launchers: [[14, 11, 90]], pools: [[17.5, 17, 1.1]],
+      deco: [[1.5, 6.5, 'tree'], [6.5, 6.5, 'bush'], [1.5, 1.5, 'rock'], [16.5, 6.5, 'rock'], [11.5, 12, 'tree'], [18.5, 21.5, 'bush'], [13.5, 21.5, 'tree'], [3.5, 25.5, 'tree'], [8.5, 20.5, 'rock'], [3, 20.5, 'bush']] },
+    { name: 'Stairway', par: 4, tee: [4, 3], hole: [7, 25], hint: 'Every turn is a step up. The top floor is icy',
       plats: [{ r: [0, 0, 8, 10], e: 0 }, { r: [6, 8, 18, 14], e: 1.3 }, { r: [14, 12, 20, 24], e: 2.6 }, { r: [4, 22, 20, 28], e: 3.9 }],
       path: [[4, 3], [4, 11], [16, 11], [17, 25], [7, 25]],
-      deco: [[1.5, 1.5, 'tree'], [16.5, 9.5, 'rock'], [18.5, 26.5, 'tree'], [5.5, 23.5, 'bush']] },
+      ice: [[11, 23, 19, 27]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'rock'], [1.5, 8.5, 'bush'], [16.5, 9.5, 'rock'], [8, 13, 'tree'], [18.5, 26.5, 'tree'], [5.5, 23.5, 'bush'], [19, 14, 'bush'], [15, 22.5, 'rock']] },
     { name: 'Pad Hop', par: 3, tee: [4, 2], hole: [17, 20], hint: 'Putt hard over the orange pad to launch up top',
       plats: [{ r: [0, 0, 8, 10], e: 0, open: 'n' }, { r: [0, 15, 8, 21], e: 5, open: 's' }, { r: [6, 17, 20, 23], e: 5 }],
-      pads: [[4, 8]],
-      path: [[4, 2], [4, 18], [17, 20]],
-      deco: [[1.5, 19.5, 'tree'], [18.5, 18.5, 'rock'], [1.5, 1.5, 'bush'], [6.5, 4, 'rock']] },
-    { name: 'Bumper Bend', par: 4, tee: [4, 3], hole: [18, 25], hint: 'Bumpers kick hard. Use them or dodge them',
+      pads: [[4, 8]], pools: [[11, 20, 1.3]],
+      deco: [[1.5, 19.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 4, 'rock'], [6.5, 16, 'tree'], [18.5, 18.3, 'rock'], [13.5, 22, 'tree'], [18.8, 22, 'bush'], [1.5, 6.5, 'tree']] },
+    { name: 'Bumper Bend', par: 4, tee: [4, 3], hole: [18, 25], hint: 'Bumpers kick, the spinner sweeps. Pick your moment',
       plats: [{ r: [0, 0, 8, 14], e: 0 }, { r: [0, 12, 20, 18], e: 0 }, { r: [14, 16, 22, 28], e: 0 }],
       path: [[4, 3], [4, 15], [18, 15], [18, 25]],
-      bumpers: [[4, 8], [10, 15], [16, 14]], sand: [[14, 20, 18, 22]],
-      deco: [[1.5, 1.5, 'tree'], [20.5, 26.5, 'tree'], [1.5, 16.5, 'rock'], [20.5, 13.5, 'bush']] },
-    { name: 'Grand Finale', par: 5, tee: [4, 3], hole: [7, 31], hint: 'A gap, a bend, a step and a sand trap. Good luck',
+      bumpers: [[4, 8], [10, 15], [16, 14]], sand: [[14, 20, 18, 22]], spinners: [[18, 19, 4, -1.4]], hills: [[2.5, 15.2, 2.2, 0.7]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'bush'], [1.5, 11, 'rock'], [20.5, 26.5, 'tree'], [15.5, 26.5, 'bush'], [20.5, 13.5, 'bush'], [12, 13, 'tree'], [20.5, 23, 'rock'], [6.5, 11, 'tree']] },
+    { name: 'Grand Finale', par: 5, tee: [4, 3], hole: [7, 31], hint: 'A gap, a bend, a hill, a spinner, ice and a pond. Good luck',
       plats: [{ r: [0, 0, 8, 8], e: 0, open: 'n' }, { r: [0, 11, 8, 17], e: 0, open: 's' }, { r: [6, 13, 22, 19], e: 0 }, { r: [16, 17, 22, 30], e: 2 }, { r: [4, 28, 22, 34], e: 2 }],
       path: [[4, 3], [4, 14], [19, 15], [19, 31], [7, 31]],
-      bumpers: [[12, 16]], sand: [[16, 22, 22, 24]],
-      deco: [[1.5, 15.5, 'tree'], [20.5, 12.5, 'rock'], [20.5, 32.5, 'tree'], [5.5, 29.5, 'bush'], [17.5, 27, 'rock'], [1.5, 1.5, 'bush']] },
+      bumpers: [[12, 16]], sand: [[16, 22, 22, 24]], spinners: [[19, 27, 4, 1.5]], ice: [[11, 29, 16, 33]], hills: [[19, 20.5, 2, 0.7]], pools: [[10, 31, 1.3]],
+      deco: [[1.5, 15.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 1.5, 'rock'], [6.5, 12.5, 'tree'], [20.5, 12.5, 'rock'], [20.5, 18.6, 'bush'], [20.5, 32.5, 'tree'], [5.5, 29.5, 'bush'], [20.8, 29.3, 'rock'], [5.5, 33, 'tree'], [14, 33, 'tree'], [20.6, 25, 'bush']] },
   ];
   const TOTAL_PAR = HOLES.reduce((s, h) => s + h.par, 0);
   const DECO = { tree: { r: 0.75, bounce: 0.5 }, rock: { r: 0.7, bounce: 0.55 }, bush: { r: 0.8, bounce: 0.35 } };
@@ -594,13 +692,41 @@
     leafB: new THREE.MeshToonMaterial({ color: PAL.leafB }),
     rock: new THREE.MeshToonMaterial({ color: PAL.rock }),
     bush: new THREE.MeshToonMaterial({ color: PAL.bush }),
+    hill: new THREE.MeshToonMaterial({ color: PAL.hill }),
+    ice: new THREE.MeshToonMaterial({ color: PAL.ice }),
+    water: new THREE.MeshToonMaterial({ color: PAL.water }),
+    poolRim: new THREE.MeshToonMaterial({ color: PAL.poolRim }),
+    ripple: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }),
+    launcher: new THREE.MeshToonMaterial({ color: PAL.launcher }),
+    arrow: new THREE.MeshBasicMaterial({ color: PAL.arrow, side: THREE.DoubleSide }),
+    bar: new THREE.MeshToonMaterial({ color: PAL.bar }),
+    barEnd: new THREE.MeshToonMaterial({ color: PAL.barEnd }),
   };
+  function domeGeometry(rad, hgt, rings, segs) {
+    const pos = [], idx = [];
+    for (let i = 0; i <= rings; i++) {
+      const u = i / rings, r = rad * u, hh = hgt * (1 - u * u) * (1 - u * u);
+      for (let j = 0; j < segs; j++) { const a = j / segs * Math.PI * 2; pos.push(Math.cos(a) * r, hh, Math.sin(a) * r); }
+    }
+    for (let i = 0; i < rings; i++) for (let j = 0; j < segs; j++) {
+      const a = i * segs + j, b = i * segs + (j + 1) % segs, c = (i + 1) * segs + j, d = (i + 1) * segs + (j + 1) % segs;
+      idx.push(a, b, c, b, d, c);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+  const arrowShape = new THREE.Shape();
+  arrowShape.moveTo(-0.75, -0.2); arrowShape.lineTo(0.1, -0.2); arrowShape.lineTo(0.1, -0.55); arrowShape.lineTo(0.85, 0);
+  arrowShape.lineTo(0.1, 0.55); arrowShape.lineTo(0.1, 0.2); arrowShape.lineTo(-0.75, 0.2); arrowShape.closePath();
   const geo = {
     trunk: new THREE.CylinderGeometry(0.22, 0.3, 1.2, 7),
     leafA: new THREE.ConeGeometry(1.1, 1.8, 7),
     leafB: new THREE.ConeGeometry(0.8, 1.5, 7),
     rock: new THREE.DodecahedronGeometry(0.75, 0),
     bush: new THREE.IcosahedronGeometry(0.8, 1),
+    arrow: new THREE.ShapeGeometry(arrowShape),
   };
 
   const holeGroup = new THREE.Group();
@@ -724,8 +850,8 @@
       else h.solids.push({ ...box(outward < 0 ? fixed : fixed - WALL_T, y0, pc.a, outward < 0 ? fixed + WALL_T : fixed, y1, pc.b), wall: true });
     }
   }
-  function prepareHole(def) {
-    const h = { def, plats: [], solids: [], sand: [], bumpers: [], pads: [], obstacles: [], tx: def.tee[0], tz: mz(def.tee[1]), hx: def.hole[0], hz: mz(def.hole[1]) };
+  function prepareHole(def, index) {
+    const h = { def, plats: [], solids: [], sand: [], bumpers: [], pads: [], obstacles: [], hills: [], ice: [], pools: [], spinners: [], launchers: [], islets: [], tx: def.tee[0], tz: mz(def.tee[1]), hx: def.hole[0], hz: mz(def.hole[1]) };
     for (const p of def.plats) {
       const [x0, y0, x1, y1] = p.r;
       h.plats.push({ minX: x0, maxX: x1, minZ: mz(y1), maxZ: mz(y0), top: p.e, open: p.open || '' });
@@ -741,6 +867,11 @@
     for (const [x, y] of (def.bumpers || [])) h.bumpers.push({ x, z: mz(y), r: 0.8, top: platTopAt(h, x, mz(y)), hit: -10 });
     for (const [x, y] of (def.pads || [])) h.pads.push({ x, z: mz(y), top: platTopAt(h, x, mz(y)), hit: -10 });
     for (const [x, y, kind] of (def.deco || [])) h.obstacles.push({ x, z: mz(y), kind, r: DECO[kind].r, bounce: DECO[kind].bounce, top: platTopAt(h, x, mz(y)) });
+    for (const [x, y, r, hh] of (def.hills || [])) h.hills.push({ x, z: mz(y), r, h: hh, top: platTopAt(h, x, mz(y)) });
+    for (const [x0, y0, x1, y1] of (def.ice || [])) h.ice.push({ minX: x0, maxX: x1, minZ: mz(y1), maxZ: mz(y0) });
+    for (const [x, y, r] of (def.pools || [])) h.pools.push({ x, z: mz(y), r, top: platTopAt(h, x, mz(y)), phase: Math.random() });
+    for (const [x, y, len, speed] of (def.spinners || [])) h.spinners.push({ x, z: mz(y), len, speed, phase: 0, top: platTopAt(h, x, mz(y)) });
+    for (const [x, y, ang] of (def.launchers || [])) { const a = ang * Math.PI / 180; h.launchers.push({ x, z: mz(y), dx: Math.cos(a), dz: -Math.sin(a), top: platTopAt(h, x, mz(y)), hit: -10 }); }
     h.holePlat = h.plats.find((p) => inPlat(p, h.hx, h.hz)) || h.plats[h.plats.length - 1];
     h.teeTop = platTopAt(h, h.tx, h.tz);
     h.path = def.path.map(([x, y]) => ({ x, z: mz(y) }));
@@ -753,9 +884,24 @@
     }
     h.bounds = { minX, maxX, minZ, maxZ, minY, maxY };
     h.floor = minY - 8;
+    // scenery: little islands with trees and hills floating around the course
+    let seed = 77 + index * 131;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    for (let k = 0; k < 8; k++) {
+      const side = k % 3, sz = 3 + rnd() * 3.5;
+      let x, z;
+      if (side === 0) { x = mix(minX - 6, maxX + 6, rnd()); z = minZ - 6 - rnd() * 9 - sz; }
+      else if (side === 1) { x = maxX + 6 + rnd() * 9 + sz; z = mix(minZ - 4, maxZ + 2, rnd()); }
+      else { x = minX - 6 - rnd() * 9 - sz; z = mix(minZ - 4, maxZ + 2, rnd()); }
+      const trees = [];
+      const nt = 1 + Math.floor(rnd() * 3);
+      for (let t = 0; t < nt; t++) trees.push({ dx: (rnd() - 0.5) * sz * 0.7, dz: (rnd() - 0.5) * sz * 0.7, s: 0.8 + rnd() * 0.7 });
+      h.islets.push({ x, z, y: minY - 2 - rnd() * 6, sz, trees, hill: rnd() < 0.65 ? { r: sz * 0.42, h: 0.8 + rnd() * 1.2 } : null });
+    }
     return h;
   }
   function surfaceAt(x, z) {
+    for (const s of cur.ice) if (x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ) return 'ice';
     for (const s of cur.sand) if (x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ) return 'sand';
     if (inPlat(cur.holePlat, x, z) && Math.hypot(x - cur.hx, z - cur.hz) < 3.4) return 'green';
     return 'turf';
@@ -813,6 +959,44 @@
         const r = addMesh(new THREE.Mesh(geo.rock, mat.rock), true, true); r.position.set(o.x, o.top + 0.45, o.z); r.rotation.set(0.3, o.x, 0.2); r.scale.set(1.1, 0.8, 1);
       } else {
         const b = addMesh(new THREE.Mesh(geo.bush, mat.bush), true, true); b.position.set(o.x, o.top + 0.5, o.z); b.scale.set(1.1, 0.85, 1.1);
+      }
+    }
+    for (const s of cur.ice) {
+      const top = platTopAt(cur, (s.minX + s.maxX) / 2, (s.minZ + s.maxZ) / 2);
+      meshBox(box(s.minX, top - 0.2, s.minZ, s.maxX, top + 0.02, s.maxZ), mat.ice, false, true);
+    }
+    for (const m of cur.hills) {
+      const d = addMesh(new THREE.Mesh(domeGeometry(m.r, m.h, 8, 28), mat.hill), true, true);
+      d.position.set(m.x, m.top + 0.01, m.z);
+    }
+    for (const pl of cur.pools) {
+      const rim = addMesh(new THREE.Mesh(new THREE.CircleGeometry(pl.r + 0.35, 32), mat.poolRim)); rim.rotation.x = -Math.PI / 2; rim.position.set(pl.x, pl.top + 0.02, pl.z);
+      const w = addMesh(new THREE.Mesh(new THREE.CircleGeometry(pl.r, 32), mat.water), false, true); w.rotation.x = -Math.PI / 2; w.position.set(pl.x, pl.top + 0.035, pl.z);
+      pl.ripple = addMesh(new THREE.Mesh(new THREE.RingGeometry(0.28, 0.4, 24), mat.ripple)); pl.ripple.rotation.x = -Math.PI / 2; pl.ripple.position.set(pl.x, pl.top + 0.05, pl.z);
+    }
+    for (const sp of cur.spinners) {
+      const hub = addMesh(new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 1.0, 16), mat.barEnd), true, true); hub.position.set(sp.x, sp.top + 0.5, sp.z);
+      const g = new THREE.Group(); g.position.set(sp.x, sp.top + 0.55, sp.z);
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(sp.len, 0.7, 0.5), mat.bar); bar.castShadow = true; bar.receiveShadow = true; g.add(bar);
+      for (const e of [-1, 1]) { const cap = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.76, 0.56), mat.barEnd); cap.position.x = e * (sp.len / 2 - 0.35); cap.castShadow = true; g.add(cap); }
+      sp.mesh = g; holeGroup.add(g); own.push(g);
+    }
+    for (const a of cur.launchers) {
+      const g = new THREE.Group(); g.position.set(a.x, a.top, a.z); g.rotation.y = Math.atan2(-a.dz, a.dx);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.16, 24), mat.launcher); base.position.y = 0.08; base.receiveShadow = true; g.add(base);
+      const ar = new THREE.Mesh(geo.arrow, mat.arrow); ar.rotation.x = -Math.PI / 2; ar.position.y = 0.17; g.add(ar);
+      a.mesh = g; holeGroup.add(g); own.push(g);
+    }
+    for (const is of cur.islets) {
+      meshBox(box(is.x - is.sz / 2, is.y - 2.6, is.z - is.sz / 2, is.x + is.sz / 2, is.y - 0.3, is.z + is.sz / 2), mat.dirt, false, false);
+      meshBox(box(is.x - is.sz / 2 - 0.1, is.y - 0.3, is.z - is.sz / 2 - 0.1, is.x + is.sz / 2 + 0.1, is.y, is.z + is.sz / 2 + 0.1), mat.turfSide, false, true);
+      if (is.hill) { const d = addMesh(new THREE.Mesh(domeGeometry(is.hill.r, is.hill.h, 6, 20), mat.hill), false, true); d.position.set(is.x, is.y + 0.01, is.z); }
+      for (const t of is.trees) {
+        const hb = is.hill ? is.hill.h * Math.pow(Math.max(0, 1 - (Math.hypot(t.dx, t.dz) / is.hill.r) ** 2), 2) : 0;
+        const tx = is.x + t.dx, tz = is.z + t.dz, ty = is.y + hb;
+        const tr = addMesh(new THREE.Mesh(geo.trunk, mat.trunk), false, false); tr.position.set(tx, ty + 0.6 * t.s, tz); tr.scale.setScalar(t.s);
+        const la = addMesh(new THREE.Mesh(geo.leafA, mat.leafA), false, false); la.position.set(tx, ty + 1.9 * t.s, tz); la.scale.setScalar(t.s);
+        const lb = addMesh(new THREE.Mesh(geo.leafB, mat.leafB), false, false); lb.position.set(tx, ty + 3.0 * t.s, tz); lb.scale.setScalar(t.s);
       }
     }
     cloudGroup.children.forEach((c, i) => {
@@ -885,7 +1069,18 @@
     out.look.set(ball.x + cam.fx * 2, ball.y + 0.3, ball.z + cam.fz * 2);
   }
   function rotate(fx, fz, a) { const c = Math.cos(a), s = Math.sin(a); return { x: fx * c - fz * s, z: fx * s + fz * c }; }
+  let orbitT = 0;
   function updateCamera(dt) {
+    if (game.state === 'menu') {
+      orbitT += dt;
+      const b = cur.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+      const ext = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
+      const rad = ext * 0.8 + 8, ang = orbitT * 0.16 + Math.PI / 2;
+      cam.pos.set(cx + Math.cos(ang) * rad, b.maxY + ext * 0.4 + 4, cz + Math.sin(ang) * rad);
+      cam.look.set(cx, (b.minY + b.maxY) / 2, cz);
+      camera.position.copy(cam.pos); camera.lookAt(cam.look);
+      return;
+    }
     if (game.state === 'intro') {
       const t = clamp(introT / introDur, 0, 1), k = t * t * (3 - 2 * t);
       routeForward(ball.x, ball.z, _fwd); cam.fx = _fwd.x; cam.fz = _fwd.z;
@@ -928,7 +1123,7 @@
 
   function loadHole(i, withIntro) {
     game.holeIndex = i;
-    cur = prepareHole(HOLES[i]);
+    cur = prepareHole(HOLES[i], i);
     buildHoleScene();
     ball.x = cur.tx; ball.z = cur.tz; ball.y = cur.teeTop + R;
     ball.vx = ball.vy = ball.vz = 0; ball.grounded = true; ball.padCool = 0;
@@ -1041,6 +1236,16 @@
     }
     g.fillStyle = '#f2dc9b';
     for (const sd of cur.sand) g.fillRect(X(sd.minX), Z(sd.minZ), (sd.maxX - sd.minX) * s, (sd.maxZ - sd.minZ) * s);
+    g.fillStyle = '#bfe9ff';
+    for (const ic of cur.ice) g.fillRect(X(ic.minX), Z(ic.minZ), (ic.maxX - ic.minX) * s, (ic.maxZ - ic.minZ) * s);
+    g.fillStyle = '#7fe08a';
+    for (const m of cur.hills) { g.beginPath(); g.arc(X(m.x), Z(m.z), m.r * s, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#3aa7e0';
+    for (const pl of cur.pools) { g.beginPath(); g.arc(X(pl.x), Z(pl.z), pl.r * s, 0, Math.PI * 2); g.fill(); }
+    g.strokeStyle = '#fff4d6'; g.lineWidth = 2;
+    for (const sp of cur.spinners) { const th = sp.phase + time * sp.speed; g.beginPath(); g.moveTo(X(sp.x - Math.cos(th) * sp.len / 2), Z(sp.z - Math.sin(th) * sp.len / 2)); g.lineTo(X(sp.x + Math.cos(th) * sp.len / 2), Z(sp.z + Math.sin(th) * sp.len / 2)); g.stroke(); }
+    g.fillStyle = '#37c26f';
+    for (const a of cur.launchers) { g.beginPath(); g.arc(X(a.x), Z(a.z), 2.4, 0, Math.PI * 2); g.fill(); }
     g.fillStyle = '#ff5a5f';
     for (const bp of cur.bumpers) { g.beginPath(); g.arc(X(bp.x), Z(bp.z), 2.2, 0, Math.PI * 2); g.fill(); }
     g.fillStyle = '#ffb703';
@@ -1100,6 +1305,8 @@
     sink() { [784, 988, 1175, 1568].forEach((f, i) => tone(f, i === 3 ? 0.5 : 0.16, 'sine', 0.2, null, i * 0.09)); },
     fanfare() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.22, 'triangle', 0.16, null, i * 0.08)); },
     fall() { tone(500, 0.5, 'sawtooth', 0.08, 80); },
+    water() { noise(0.35, 0.3, 600, 150); tone(320, 0.3, 'sine', 0.1, 90); },
+    start() { [523, 659, 784].forEach((f, i) => tone(f, 0.18, 'triangle', 0.14, null, i * 0.07)); },
     tick() { tone(1200, 0.03, 'square', 0.03, 900); },
   };
   function buzz(pattern) {
@@ -1171,6 +1378,40 @@
   }
   function endIntro() { game.state = 'idle'; skipEl.hidden = true; holeTitle.classList.add('hide'); }
 
+  // ---------- title screen ----------
+  function showMenu(holeIndex) {
+    loadHole(holeIndex, false);
+    game.state = 'menu';
+    orbitT = 0;
+    appEl.classList.add('in-menu');
+    menuEl.classList.remove('hide');
+    let best = null;
+    try { const v = parseInt(localStorage.getItem('pocketGolf.best'), 10); if (Number.isFinite(v)) best = v; } catch (e) { /* optional */ }
+    menuBest.innerHTML = best === null ? `Par ${TOTAL_PAR} <strong>9 holes</strong>` : `Best round <strong>${best}</strong>`;
+    menuSound.textContent = game.muted ? 'Sound off' : 'Sound on';
+  }
+  function startFromMenu() {
+    if (game.state !== 'menu') return;
+    initAudio();
+    sfx.start();
+    menuEl.classList.add('hide');
+    appEl.classList.remove('in-menu');
+    introFrom.pos.copy(cam.pos); introFrom.look.copy(cam.look);
+    game.state = 'intro'; introT = 0;
+    introDur = 1.8 + cur.pathLen[cur.pathLen.length - 1] / 60;
+    skipEl.hidden = false;
+    holeTitleName.textContent = cur.def.name;
+    holeTitleSub.textContent = `Hole ${game.holeIndex + 1} · Par ${cur.def.par}`;
+    holeTitle.classList.remove('hide');
+  }
+  menuEl.addEventListener('pointerdown', (e) => { if (menuSound.contains(e.target)) return; e.preventDefault(); startFromMenu(); });
+  menuSound.addEventListener('click', (e) => {
+    e.stopPropagation(); initAudio();
+    game.muted = !game.muted; applyMuteUi();
+    menuSound.textContent = game.muted ? 'Sound off' : 'Sound on';
+    try { localStorage.setItem('pocketGolf.muted', game.muted ? '1' : '0'); } catch (err) { /* optional */ }
+  });
+
   btnSound.addEventListener('click', () => {
     initAudio();
     game.muted = !game.muted;
@@ -1210,6 +1451,39 @@
     return best;
   }
   let lastWallSound = 0;
+  const _mh = { h: 0, gx: 0, gz: 0 };
+  function moundAt(x, z) {
+    _mh.h = 0; _mh.gx = 0; _mh.gz = 0;
+    for (const m of cur.hills) {
+      const dx = x - m.x, dz = z - m.z, d = Math.hypot(dx, dz);
+      if (d >= m.r) continue;
+      const u = d / m.r, q = 1 - u * u;
+      _mh.h += m.h * q * q;
+      if (d > 1e-6) { const dh = -4 * m.h * u * q / m.r; _mh.gx += dh * dx / d; _mh.gz += dh * dz / d; }
+    }
+    return _mh;
+  }
+  function collideSpinner(b, sp, live) {
+    if (b.y - R > sp.top + 1.0 || b.y + R < sp.top) return;
+    const th = sp.phase + time * sp.speed;
+    const ux = Math.cos(th), uz = Math.sin(th);
+    const px = b.x - sp.x, pz = b.z - sp.z;
+    const along = clamp(px * ux + pz * uz, -sp.len / 2, sp.len / 2);
+    const cx = sp.x + ux * along, cz = sp.z + uz * along;
+    const dx = b.x - cx, dz = b.z - cz;
+    const d = Math.hypot(dx, dz), min = R + 0.28;
+    if (d >= min || d === 0) return;
+    const nx = dx / d, nz = dz / d;
+    b.x = cx + nx * min; b.z = cz + nz * min;
+    const rx = cx - sp.x, rz = cz - sp.z;
+    const bvx = -sp.speed * rz, bvz = sp.speed * rx;
+    const relx = b.vx - bvx, relz = b.vz - bvz;
+    const vn = relx * nx + relz * nz;
+    if (vn < 0) {
+      b.vx = relx - 1.8 * vn * nx + bvx; b.vz = relz - 1.8 * vn * nz + bvz;
+      if (live) { sfx.wall(0.8); kick(0.08); spawn(b.x - nx * R, b.y, b.z - nz * R, { n: 6, speed: 3, up: 2, life: 0.3, size: 0.12, colors: [0xfff4d6, 0xff5a5f], vx: nx * 2, vz: nz * 2 }); }
+    }
+  }
   function collideSolids(b, live) {
     for (const s of cur.solids) {
       const cx = clamp(b.x, s.minX, s.maxX), cy = clamp(b.y, s.minY, s.maxY), cz = clamp(b.z, s.minZ, s.maxZ);
@@ -1277,12 +1551,19 @@
   }
   function stepBody(b, h, live) {
     b.wasGrounded = b.grounded;
+    b.slope = 0;
     if (b.grounded) {
-      const sup = supportBelow(b.x, b.z, b.y, 0.35);
+      const m = moundAt(b.x, b.z);
+      const mh = m.h, gx = m.gx, gz = m.gz;
+      const sup = supportBelow(b.x, b.z, b.y - mh, 0.35);
       if (sup === null) { b.grounded = false; if (live) { b.airT = 0; } }
       else {
-        b.y = sup + R;
+        b.y = sup + mh + R;
+        b.slope = Math.hypot(gx, gz);
+        for (const pl of cur.pools) if (Math.abs(sup - pl.top) < 0.05 && Math.hypot(b.x - pl.x, b.z - pl.z) < pl.r) return 'water';
         const P = SURF[surfaceAt(b.x, b.z)];
+        // hills push the ball downhill
+        b.vx -= G * gx * h; b.vz -= G * gz * h;
         const hx = cur.hx - b.x, hz = cur.hz - b.z, hd = Math.hypot(hx, hz);
         let sp = Math.hypot(b.vx, b.vz);
         const onGreenLevel = Math.abs(sup - cur.holePlat.top) < 0.05;
@@ -1298,20 +1579,47 @@
             if (live) { p.hit = time; sfx.pad(); buzz(15); kick(0.12); pop('Boing!', 'small'); spawn(b.x, b.y - 0.2, b.z, { n: 14, speed: 3, up: 8, life: 0.6, size: 0.16, colors: [0xffb703, 0xfff1c9] }); }
           }
         }
+        for (const a of cur.launchers) {
+          if (Math.abs(sup - a.top) < 0.05 && Math.hypot(b.x - a.x, b.z - a.z) < 1.1 && b.padCool <= 0) {
+            b.vx = a.dx * 14; b.vz = a.dz * 14; b.vy = 9; b.grounded = false; b.padCool = 0.5;
+            if (live) { a.hit = time; sfx.pad(); buzz(15); kick(0.1); pop('Launch!', 'small'); spawn(b.x, b.y - 0.2, b.z, { n: 14, speed: 3, up: 6, life: 0.6, size: 0.16, colors: [0x37c26f, 0xffffff] }); }
+          }
+        }
       }
     }
     if (!b.grounded) { b.vy -= G * h; if (live) { b.airT += h; b.maxH = Math.max(b.maxH, b.y); } }
     b.padCool -= h;
     b.x += b.vx * h; b.y += b.vy * h; b.z += b.vz * h;
     collideSolids(b, live);
+    if (!b.grounded && b.vy <= 0) {
+      // landing on a hill, which rises above the flat platform top
+      const m = moundAt(b.x, b.z);
+      if (m.h > 0.01) {
+        const gh = platTopAt(cur, b.x, b.z) + m.h;
+        if (b.y - R <= gh) {
+          b.y = gh + R;
+          const nl = Math.hypot(m.gx, 1, m.gz);
+          const nx = -m.gx / nl, ny = 1 / nl, nz = -m.gz / nl;
+          const vn = b.vx * nx + b.vy * ny + b.vz * nz;
+          if (vn < 0) {
+            const P = SURF[surfaceAt(b.x, b.z)];
+            const tx = b.vx - vn * nx, ty = b.vy - vn * ny, tz = b.vz - vn * nz;
+            b.vx = tx * P.grip - vn * nx * P.bounce; b.vy = ty * P.grip - vn * ny * P.bounce; b.vz = tz * P.grip - vn * nz * P.bounce;
+            if (b.vy < 2.2) { b.vy = 0; b.grounded = true; }
+            if (live && !b.wasGrounded) onLand(b, -vn, P);
+          }
+        }
+      }
+    }
     for (const bp of cur.bumpers) collideRound(b, bp.x, bp.z, bp.r, bp.top, 1.3, 1.15, 9, live, 'bumper', bp);
     for (const o of cur.obstacles) collideRound(b, o.x, o.z, o.r, o.top, o.kind === 'tree' ? 3.6 : 1.4, o.bounce, 0, live, o.kind, o);
+    if (live) for (const sp of cur.spinners) collideSpinner(b, sp, live);
     if (b.grounded) {
       const hd = Math.hypot(cur.hx - b.x, cur.hz - b.z);
       const sp = Math.hypot(b.vx, b.vz);
       const onGreenLevel = Math.abs((b.y - R) - cur.holePlat.top) < 0.05;
       if (onGreenLevel && hd < HOLE_R && sp < 8) return 'sink';
-      if (sp < 0.15) { b.vx = b.vz = 0; return 'stop'; }
+      if (sp < 0.15 && b.slope < 0.12) { b.vx = b.vz = 0; return 'stop'; }
     }
     if (b.y < cur.floor) return 'fall';
     return null;
@@ -1324,7 +1632,11 @@
     for (const bp of cur.bumpers) { const k = Math.max(0, 1 - (time - bp.hit) / 0.25); const s = 1 + k * 0.3; bp.mesh.scale.set(s, 1 - k * 0.2, s); bp.cap.scale.set(s, 1, s); }
     for (const p of cur.pads) { const k = Math.max(0, 1 - (time - p.hit) / 0.3); p.mesh.scale.set(1 + k * 0.3, 1 + k * 3, 1 + k * 0.3); }
     if (flagMesh) flagMesh.rotation.y = reduceMotion ? 0 : Math.sin(time * 3) * 0.2;
+    for (const sp of cur.spinners) sp.mesh.rotation.y = -(sp.phase + time * sp.speed);
+    for (const pl of cur.pools) { const k = (time * 0.6 + pl.phase) % 1; const sc = 1 + k * (pl.r / 0.4 - 1); pl.ripple.scale.set(sc, sc, 1); }
+    for (const a of cur.launchers) { const k = Math.max(0, 1 - (time - a.hit) / 0.3); a.mesh.scale.set(1 + k * 0.25, 1 + k * 2, 1 + k * 0.25); }
     squash = Math.max(0, squash - dt * 4);
+    if (game.state === 'menu') return;
 
     if (game.state === 'intro') {
       introT += dt;
@@ -1387,13 +1699,19 @@
         settle();
         return;
       }
-      if (ev === 'fall') {
+      if (ev === 'fall' || ev === 'water') {
         game.state = 'penalty'; penaltyT = 0;
         ball.vx = ball.vy = ball.vz = 0;
         ballMesh.visible = false;
-        sfx.fall(); buzz([10, 30, 10]);
-        pop('Off the edge!', 'small');
-        toast('<strong>Off the edge!</strong> One stroke penalty, back you go', 2400);
+        buzz([10, 30, 10]);
+        if (ev === 'water') {
+          sfx.water(); pop('Splash!', 'small'); kick(0.08);
+          spawn(ball.x, ball.y, ball.z, { n: 18, speed: 3, up: 7, life: 0.6, size: 0.16, colors: [0x3aa7e0, 0x9ad8f8, 0xffffff] });
+          toast('<strong>Splash!</strong> One stroke penalty, back you go', 2400);
+        } else {
+          sfx.fall(); pop('Off the edge!', 'small');
+          toast('<strong>Off the edge!</strong> One stroke penalty, back you go', 2400);
+        }
         return;
       }
     }
@@ -1423,7 +1741,7 @@
     launch(s.x, s.z, p, ghost);
     const chip = game.mode === 'chip';
     const arr = dotGeo.attributes.position.array;
-    let n = 0, t = 0, steps = 0, ended = false, landed = false;
+    let n = 0, t = 0, steps = 0, ended = false, landed = false, endEv = null;
     const h = 1 / 120;
     const every = chip ? 2 : 6;
     let lx = ball.x, ly = ball.y, lz = ball.z;
@@ -1432,7 +1750,7 @@
       t += h; steps++;
       if (steps % every === 0) { arr[n * 3] = ghost.x; arr[n * 3 + 1] = ghost.y + 0.05; arr[n * 3 + 2] = ghost.z; n++; }
       if (chip && ghost.grounded && !landed) { landed = true; lx = ghost.x; ly = ghost.y; lz = ghost.z; ended = true; }
-      if (ev === 'stop' || ev === 'sink' || ev === 'fall') { ended = true; if (!landed) { lx = ghost.x; ly = ghost.y; lz = ghost.z; } }
+      if (ev === 'stop' || ev === 'sink' || ev === 'fall' || ev === 'water') { ended = true; endEv = ev; if (!landed) { lx = ghost.x; ly = ghost.y; lz = ghost.z; } }
     }
     if (!landed && !ended) { lx = ghost.x; ly = ghost.y; lz = ghost.z; }
     dotGeo.attributes.position.needsUpdate = true;
@@ -1448,7 +1766,7 @@
     powerFill.style.height = `${Math.round(p * 100)}%`;
     powerFill.style.background = '#' + col.getHexString();
     const dist = Math.round(Math.hypot(lx - ball.x, lz - ball.z));
-    carryEl.innerHTML = sup === null ? `<small>Off the edge</small>` : `${dist}<small> m ${chip ? 'carry' : 'roll'}</small>`;
+    carryEl.innerHTML = endEv === 'water' ? `<small>Splash</small>` : sup === null ? `<small>Off the edge</small>` : `${dist}<small> m ${chip ? 'carry' : 'roll'}</small>`;
   }
 
   // ---------- scoring ----------
@@ -1530,8 +1848,8 @@
       gold: d < 0,
       sub: `${total} strokes, par ${TOTAL_PAR}`,
       body,
-      button: 'Play again',
-      onClick: () => { game.scores = []; game.shots = 0; loadHole(0, true); },
+      button: 'Back to menu',
+      onClick: () => { game.scores = []; game.shots = 0; showMenu(0); },
     });
   }
 
@@ -1584,13 +1902,13 @@
   function start(saved) {
     try { game.muted = localStorage.getItem('pocketGolf.muted') === '1'; } catch (e) { /* optional */ }
     applyMuteUi();
+    let idx = 0;
     if (saved && Array.isArray(saved.scores) && Number.isInteger(saved.holeIndex) && saved.holeIndex < HOLES.length) {
       game.scores = saved.scores.slice(0, saved.holeIndex);
       game.shots = saved.shots || 0;
-      loadHole(saved.holeIndex, true);
-    } else {
-      loadHole(0, true);
+      idx = saved.holeIndex;
     }
+    showMenu(idx);
     requestAnimationFrame(frame);
   }
   const hot = window.claude && window.claude.hot;
