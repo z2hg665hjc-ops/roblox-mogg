@@ -1,0 +1,4713 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <token name="Technology">4</token>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Constants</string>
+          <string name="Source"><![CDATA[--[[
+	Constants.lua
+	Single source of truth for every tunable number in the game.
+	Change balance here, nowhere else.
+]]
+
+local Constants = {}
+
+Constants.DATASTORE_NAME = "MoggingData_v3"
+Constants.LEADERBOARD_STORE_NAME = "MoggingLeaderboard_v3"
+
+Constants.STARTING_CREDITS = 100
+
+-- How often (seconds) a player's data autosaves while online.
+Constants.AUTOSAVE_INTERVAL = 120
+
+-- ---------------------------------------------------------------------------
+-- Stats. Each stat costs Credits to level up and contributes to MogScore.
+-- Cost grows geometrically: cost(level) = BaseCost * Growth ^ level
+-- ---------------------------------------------------------------------------
+Constants.STATS = {
+	Jawline = {
+		DisplayName = "Jawline",
+		BaseCost = 25,
+		Growth = 1.12,
+		ScorePerLevel = 4,
+		MaxLevel = 250,
+	},
+	Hair = {
+		DisplayName = "Hair",
+		BaseCost = 20,
+		Growth = 1.12,
+		ScorePerLevel = 3,
+		MaxLevel = 250,
+	},
+	Physique = {
+		DisplayName = "Physique",
+		BaseCost = 35,
+		Growth = 1.13,
+		ScorePerLevel = 5,
+		MaxLevel = 250,
+	},
+	Aura = {
+		DisplayName = "Aura",
+		BaseCost = 50,
+		Growth = 1.14,
+		ScorePerLevel = 6,
+		MaxLevel = 250,
+	},
+	Fit = {
+		DisplayName = "Fit",
+		BaseCost = 30,
+		Growth = 1.12,
+		ScorePerLevel = 4,
+		MaxLevel = 250,
+	},
+}
+
+-- Order stats appear in the shop UI.
+Constants.STAT_ORDER = { "Jawline", "Hair", "Physique", "Aura", "Fit" }
+
+-- ---------------------------------------------------------------------------
+-- Ranks: purely cosmetic titles based on MogScore. Highest threshold <= score wins.
+-- ---------------------------------------------------------------------------
+Constants.RANKS = {
+	{ Name = "NPC", MinScore = 0, Color = { 150, 150, 150 } },
+	{ Name = "Mid", MinScore = 50, Color = { 200, 200, 120 } },
+	{ Name = "Decent", MinScore = 150, Color = { 120, 200, 160 } },
+	{ Name = "Rizzler", MinScore = 350, Color = { 90, 200, 255 } },
+	{ Name = "Chad", MinScore = 700, Color = { 90, 140, 255 } },
+	{ Name = "Sigma", MinScore = 1300, Color = { 170, 90, 255 } },
+	{ Name = "Alpha", MinScore = 2400, Color = { 255, 120, 90 } },
+	{ Name = "Mogger", MinScore = 4200, Color = { 255, 80, 170 } },
+	{ Name = "Grand Mogger", MinScore = 7000, Color = { 255, 200, 40 } },
+	{ Name = "Living Legend", MinScore = 12000, Color = { 255, 255, 255 } },
+}
+
+-- ---------------------------------------------------------------------------
+-- Rebirth: resets stats + credits back to the starting point, keeps a
+-- permanent multiplier on all future Credit and MogScore gains.
+-- ---------------------------------------------------------------------------
+Constants.REBIRTH_BASE_REQUIREMENT = 500 -- MogScore needed for 1st rebirth
+Constants.REBIRTH_REQUIREMENT_GROWTH = 1.6 -- each rebirth needs this much more
+Constants.REBIRTH_MULTIPLIER_PER_REBIRTH = 0.25 -- +25% credits/score per rebirth
+
+-- ---------------------------------------------------------------------------
+-- Credit Check kiosk: a server-verified periodic payout so credit gains are
+-- always double-checked against the player's real, saved MogScore.
+-- ---------------------------------------------------------------------------
+Constants.CREDIT_CHECK_COOLDOWN = 180 -- seconds between checks
+Constants.CREDIT_CHECK_BASE_PAYOUT = 15
+Constants.CREDIT_CHECK_SCORE_FACTOR = 0.08 -- + MogScore * factor
+
+-- ---------------------------------------------------------------------------
+-- Gym minigame: quick repeated interaction for a small, frequent trickle.
+-- ---------------------------------------------------------------------------
+Constants.GYM_REP_COOLDOWN = 4
+Constants.GYM_REP_PAYOUT = 3
+Constants.GYM_REP_SCORE_GAIN = 0 -- gym is credits-only, stats come from the shop
+
+-- ---------------------------------------------------------------------------
+-- Rating booth: one-shot flavor reward, longer cooldown, bigger payout.
+-- ---------------------------------------------------------------------------
+Constants.RATING_BOOTH_COOLDOWN = 90
+Constants.RATING_BOOTH_BASE_PAYOUT = 10
+Constants.RATING_BOOTH_SCORE_FACTOR = 0.05
+
+-- ---------------------------------------------------------------------------
+-- Anti-exploit: minimum seconds between remote fires per player, per remote.
+-- ---------------------------------------------------------------------------
+Constants.REMOTE_COOLDOWNS = {
+	BuyStat = 0.15,
+	Rebirth = 1,
+	CreditCheck = 1,
+	GymRep = 1,
+	RateSelf = 1,
+	RequestData = 1,
+}
+
+function Constants.GetRank(mogScore)
+	local best = Constants.RANKS[1]
+	for _, rank in ipairs(Constants.RANKS) do
+		if mogScore >= rank.MinScore then
+			best = rank
+		end
+	end
+	return best
+end
+
+function Constants.GetStatCost(statName, level)
+	local def = Constants.STATS[statName]
+	if not def then
+		return nil
+	end
+	return math.floor(def.BaseCost * (def.Growth ^ level))
+end
+
+function Constants.GetRebirthRequirement(rebirthCount)
+	return math.floor(Constants.REBIRTH_BASE_REQUIREMENT * (Constants.REBIRTH_REQUIREMENT_GROWTH ^ rebirthCount))
+end
+
+function Constants.GetRebirthMultiplier(rebirthCount)
+	return 1 + (rebirthCount * Constants.REBIRTH_MULTIPLIER_PER_REBIRTH)
+end
+
+return Constants
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Remotes</string>
+          <string name="Source"><![CDATA[--[[
+	Remotes.lua
+	Single place that defines every RemoteEvent/RemoteFunction the game uses.
+	The server creates them on boot; the client just waits for them.
+	Require this from both sides and call Remotes.Get("Name").
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local EVENT_NAMES = {
+	"BuyStat", -- client -> server: {statName, count}
+	"Rebirth", -- client -> server: {}
+	"CreditCheck", -- client -> server: {}
+	"GymRep", -- client -> server: {}
+	"RateSelf", -- client -> server: {}
+	"RequestData", -- client -> server: {} (ask for a fresh full snapshot)
+	"DataUpdated", -- server -> client: {profileSnapshot}
+	"Notify", -- server -> client: {kind, title, message}
+	"LeaderboardUpdate", -- server -> client: {entries}
+	"OpenPanel", -- server -> client: {panelName, arg}
+}
+
+local Remotes = {}
+local folder = nil
+local cache = {}
+
+local function ensureFolder()
+	if folder then
+		return folder
+	end
+	if RunService:IsServer() then
+		folder = ReplicatedStorage:FindFirstChild("Remotes")
+		if not folder then
+			folder = Instance.new("Folder")
+			folder.Name = "Remotes"
+			folder.Parent = ReplicatedStorage
+		end
+		for _, name in ipairs(EVENT_NAMES) do
+			if not folder:FindFirstChild(name) then
+				local remote = Instance.new("RemoteEvent")
+				remote.Name = name
+				remote.Parent = folder
+			end
+		end
+	else
+		folder = ReplicatedStorage:WaitForChild("Remotes", 30)
+	end
+	return folder
+end
+
+function Remotes.Get(name)
+	if cache[name] then
+		return cache[name]
+	end
+	local f = ensureFolder()
+	if not f then
+		error("[Remotes] Remotes folder never appeared (name=" .. tostring(name) .. ")")
+	end
+	local remote = f:FindFirstChild(name)
+	if not remote and not RunService:IsServer() then
+		remote = f:WaitForChild(name, 30)
+	end
+	if not remote then
+		error("[Remotes] Unknown remote: " .. tostring(name))
+	end
+	cache[name] = remote
+	return remote
+end
+
+-- Pre-create everything immediately when required on the server.
+if RunService:IsServer() then
+	ensureFolder()
+end
+
+return Remotes
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">Signal</string>
+          <string name="Source"><![CDATA[--[[
+	Signal.lua
+	Minimal, dependency-free event emitter used for in-process (server-only or
+	client-only) communication between modules. Not for client<->server use —
+	that's what Remotes.lua and RemoteEvents are for.
+]]
+
+local Signal = {}
+Signal.__index = Signal
+
+function Signal.new()
+	return setmetatable({
+		_handlers = {},
+		_nextId = 0,
+	}, Signal)
+end
+
+function Signal:Connect(fn)
+	self._nextId += 1
+	local id = self._nextId
+	self._handlers[id] = fn
+	local connection = {}
+	function connection.Disconnect()
+		self._handlers[id] = nil
+	end
+	return connection
+end
+
+function Signal:Fire(...)
+	for _, fn in pairs(self._handlers) do
+		local ok, err = pcall(fn, ...)
+		if not ok then
+			warn("[Signal] handler error:", err)
+		end
+	end
+end
+
+function Signal:DisconnectAll()
+	self._handlers = {}
+end
+
+return Signal
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="6">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Script" referent="7">
+      <Properties>
+        <string name="Name">Main</string>
+        <token name="RunContext">0</token>
+        <string name="Source"><![CDATA[--[[
+	Server bootstrap. Order matters: data first, then gameplay, then world.
+]]
+
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local Server = ServerScriptService:WaitForChild("Server")
+
+local function boot(name, fn)
+	local ok, err = pcall(fn)
+	if ok then
+		print(("[Boot] %s ready"):format(name))
+	else
+		warn(("[Boot] %s FAILED: %s"):format(name, tostring(err)))
+	end
+end
+
+local AntiExploit = require(Server:WaitForChild("AntiExploit"))
+local DataService = require(Server:WaitForChild("DataService"))
+local CreditService = require(Server:WaitForChild("CreditService"))
+local StatService = require(Server:WaitForChild("StatService"))
+local RebirthService = require(Server:WaitForChild("RebirthService"))
+local PresenceService = require(Server:WaitForChild("PresenceService"))
+local LeaderboardService = require(Server:WaitForChild("LeaderboardService"))
+local LightingSetup = require(Server:WaitForChild("LightingSetup"))
+local MapBuilder = require(Server:WaitForChild("MapBuilder"))
+local InteractionService = require(Server:WaitForChild("InteractionService"))
+
+boot("AntiExploit", AntiExploit.Init)
+boot("DataService", DataService.Init)
+boot("CreditService", CreditService.Init)
+boot("StatService", StatService.Init)
+boot("RebirthService", RebirthService.Init)
+boot("PresenceService", PresenceService.Init)
+boot("Lighting", LightingSetup.Apply)
+boot("Map", MapBuilder.Build)
+boot("LeaderboardService", LeaderboardService.Init)
+boot("InteractionService", InteractionService.Init)
+
+print("[Boot] Mogging Simulator server online.")
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="Folder" referent="8">
+      <Properties>
+        <string name="Name">Server</string>
+      </Properties>
+      <Item class="ModuleScript" referent="9">
+        <Properties>
+          <string name="Name">AntiExploit</string>
+          <string name="Source"><![CDATA[--[[
+	AntiExploit.lua
+	Per-player, per-remote rate limiting. Any remote handler should call
+	AntiExploit.Allow(player, remoteName) first and bail out on false.
+	Repeat offenders are logged; a very aggressive one is kicked.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+
+local AntiExploit = {}
+
+local lastCall = {} -- [UserId][remoteName] = os.clock()
+local strikes = {} -- [UserId] = count
+
+local STRIKE_KICK_THRESHOLD = 120 -- violations within one session before kick
+local STRIKE_DECAY_INTERVAL = 60
+
+function AntiExploit.Allow(player, remoteName)
+	if not player or not player.Parent then
+		return false
+	end
+	local userId = player.UserId
+	local cooldown = Constants.REMOTE_COOLDOWNS[remoteName] or 0.5
+	lastCall[userId] = lastCall[userId] or {}
+
+	local now = os.clock()
+	local last = lastCall[userId][remoteName] or 0
+	if now - last < cooldown then
+		strikes[userId] = (strikes[userId] or 0) + 1
+		if strikes[userId] >= STRIKE_KICK_THRESHOLD then
+			warn(("[AntiExploit] Kicking %s for remote spam (%s)"):format(player.Name, remoteName))
+			player:Kick("Too many requests. Please rejoin.")
+		end
+		return false
+	end
+	lastCall[userId][remoteName] = now
+	return true
+end
+
+function AntiExploit.Init()
+	Players.PlayerRemoving:Connect(function(player)
+		lastCall[player.UserId] = nil
+		strikes[player.UserId] = nil
+	end)
+
+	-- Slowly forgive strikes so a laggy player isn't punished forever.
+	task.spawn(function()
+		while true do
+			task.wait(STRIKE_DECAY_INTERVAL)
+			for userId, count in pairs(strikes) do
+				strikes[userId] = math.max(0, count - 10)
+			end
+		end
+	end)
+end
+
+return AntiExploit
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="10">
+        <Properties>
+          <string name="Name">CreditService</string>
+          <string name="Source"><![CDATA[--[[
+	CreditService.lua
+	The only module allowed to change a player's Credits. Everything is
+	server-authoritative; the client never tells the server how many credits
+	it has, only which action it wants to take.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local DataService = require(script.Parent:WaitForChild("DataService"))
+
+local CreditService = {}
+
+local MAX_CREDITS = 1e15
+
+local function notify(player, kind, title, message)
+	Remotes.Get("Notify"):FireClient(player, kind, title, message)
+end
+
+function CreditService.GetMultiplier(profile)
+	return Constants.GetRebirthMultiplier(profile.Rebirths or 0)
+end
+
+-- Adds raw credits after applying the player's rebirth multiplier.
+-- Returns the actual amount added.
+function CreditService.Add(player, amount, reason)
+	local profile = DataService.Get(player)
+	if not profile or type(amount) ~= "number" or amount <= 0 then
+		return 0
+	end
+	local final = math.floor(amount * CreditService.GetMultiplier(profile))
+	if final <= 0 then
+		final = 1
+	end
+	profile.Credits = math.clamp(profile.Credits + final, 0, MAX_CREDITS)
+	profile.LifetimeCredits = math.clamp((profile.LifetimeCredits or 0) + final, 0, MAX_CREDITS)
+	DataService.MarkDirty(player)
+	return final, reason
+end
+
+-- Spends credits only if the player can afford it. Returns true on success.
+function CreditService.Spend(player, amount)
+	local profile = DataService.Get(player)
+	if not profile or type(amount) ~= "number" or amount < 0 then
+		return false
+	end
+	if profile.Credits < amount then
+		return false
+	end
+	profile.Credits -= amount
+	DataService.MarkDirty(player)
+	return true
+end
+
+function CreditService.CanAfford(player, amount)
+	local profile = DataService.Get(player)
+	return profile ~= nil and profile.Credits >= amount
+end
+
+-- Credit Check: verify the player's saved MogScore and pay out based on it.
+-- Returns payout (number) on success, or nil + reason string.
+function CreditService.CreditCheck(player)
+	local profile = DataService.Get(player)
+	if not profile then
+		return nil, "Your data is still loading."
+	end
+
+	local now = os.time()
+	local remaining = (profile.LastCreditCheck or 0) + Constants.CREDIT_CHECK_COOLDOWN - now
+	if remaining > 0 then
+		return nil, ("Credit Check is cooling down. %ds left."):format(remaining)
+	end
+
+	-- Recompute MogScore from saved stats so the payout can never be inflated
+	-- by a tampered in-memory value.
+	local verifiedScore = 0
+	for statName, def in pairs(Constants.STATS) do
+		local level = tonumber(profile.Stats[statName]) or 0
+		verifiedScore += level * def.ScorePerLevel
+	end
+	verifiedScore = math.floor(verifiedScore * CreditService.GetMultiplier(profile))
+	profile.MogScore = verifiedScore
+
+	local payout = Constants.CREDIT_CHECK_BASE_PAYOUT + math.floor(verifiedScore * Constants.CREDIT_CHECK_SCORE_FACTOR)
+	profile.LastCreditCheck = now
+	profile.CreditChecks = (profile.CreditChecks or 0) + 1
+
+	local actual = CreditService.Add(player, payout, "CreditCheck")
+	notify(player, "success", "Credit Check Passed", ("Verified Mog Score %d. +%d Credits."):format(verifiedScore, actual))
+	return actual
+end
+
+-- Gym rep: small frequent trickle.
+function CreditService.GymRep(player)
+	local profile = DataService.Get(player)
+	if not profile then
+		return nil, "Your data is still loading."
+	end
+	local now = os.time()
+	if (profile.LastGymRep or 0) + Constants.GYM_REP_COOLDOWN > now then
+		return nil, "Catch your breath first."
+	end
+	profile.LastGymRep = now
+	local actual = CreditService.Add(player, Constants.GYM_REP_PAYOUT, "GymRep")
+	notify(player, "info", "Rep Complete", ("+%d Credits. Keep going."):format(actual))
+	return actual
+end
+
+-- Rating booth: bigger payout on a longer cooldown, scales with score.
+function CreditService.RateSelf(player)
+	local profile = DataService.Get(player)
+	if not profile then
+		return nil, "Your data is still loading."
+	end
+	local now = os.time()
+	local remaining = (profile.LastRating or 0) + Constants.RATING_BOOTH_COOLDOWN - now
+	if remaining > 0 then
+		return nil, ("The mirror needs %ds to reset."):format(remaining)
+	end
+	profile.LastRating = now
+	local payout = Constants.RATING_BOOTH_BASE_PAYOUT + math.floor((profile.MogScore or 0) * Constants.RATING_BOOTH_SCORE_FACTOR)
+	local actual = CreditService.Add(player, payout, "RateSelf")
+	local rank = Constants.GetRank(profile.MogScore or 0)
+	notify(player, "success", "Mirror Verdict: " .. rank.Name, ("The mirror approves. +%d Credits."):format(actual))
+	return actual
+end
+
+function CreditService.Init()
+	Remotes.Get("CreditCheck").OnServerEvent:Connect(function(player)
+		local AntiExploit = require(script.Parent:WaitForChild("AntiExploit"))
+		if not AntiExploit.Allow(player, "CreditCheck") then
+			return
+		end
+		local payout, reason = CreditService.CreditCheck(player)
+		if not payout then
+			notify(player, "error", "Credit Check", reason)
+		end
+	end)
+
+	Remotes.Get("GymRep").OnServerEvent:Connect(function(player)
+		local AntiExploit = require(script.Parent:WaitForChild("AntiExploit"))
+		if not AntiExploit.Allow(player, "GymRep") then
+			return
+		end
+		local payout, reason = CreditService.GymRep(player)
+		if not payout then
+			notify(player, "error", "Gym", reason)
+		end
+	end)
+
+	Remotes.Get("RateSelf").OnServerEvent:Connect(function(player)
+		local AntiExploit = require(script.Parent:WaitForChild("AntiExploit"))
+		if not AntiExploit.Allow(player, "RateSelf") then
+			return
+		end
+		local payout, reason = CreditService.RateSelf(player)
+		if not payout then
+			notify(player, "error", "Mirror", reason)
+		end
+	end)
+end
+
+return CreditService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">DataService</string>
+          <string name="Source"><![CDATA[--[[
+	DataService.lua
+	Owns every player's saved profile. Loads on join, autosaves on a timer,
+	saves on leave and on server shutdown. Every other service reads/writes
+	through DataService.Get(player) and calls DataService.MarkDirty(player)
+	after a change so the client gets a fresh snapshot.
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+local Signal = require(Shared:WaitForChild("Signal"))
+
+local DataService = {}
+
+DataService.ProfileLoaded = Signal.new() -- fires (player, profile)
+
+local store = nil
+local profiles = {} -- [UserId] = profile
+local loadedFlags = {} -- [UserId] = true once loaded
+
+-- In Studio (where API access is often off) fail fast so Play mode is instant.
+local SAVE_RETRIES = RunService:IsStudio() and 1 or 3
+
+local function buildTemplate()
+	local stats = {}
+	for statName in pairs(Constants.STATS) do
+		stats[statName] = 0
+	end
+	return {
+		Version = 1,
+		Credits = Constants.STARTING_CREDITS,
+		WelcomeGranted = true,
+		Stats = stats,
+		MogScore = 0,
+		Rebirths = 0,
+		LifetimeCredits = Constants.STARTING_CREDITS,
+		CreditChecks = 0,
+		LastCreditCheck = 0,
+		LastGymRep = 0,
+		LastRating = 0,
+		FirstJoin = os.time(),
+		LastJoin = os.time(),
+		PlayTime = 0,
+	}
+end
+
+-- Recursively fill in any keys missing from an older save so schema changes
+-- never wipe a player.
+local function reconcile(target, template)
+	for key, value in pairs(template) do
+		if target[key] == nil then
+			if type(value) == "table" then
+				target[key] = reconcile({}, value)
+			else
+				target[key] = value
+			end
+		elseif type(value) == "table" and type(target[key]) == "table" then
+			reconcile(target[key], value)
+		end
+	end
+	return target
+end
+
+local function getStore()
+	if store then
+		return store
+	end
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(Constants.DATASTORE_NAME)
+	end)
+	if ok then
+		store = result
+	else
+		warn("[DataService] Could not get DataStore:", result)
+	end
+	return store
+end
+
+local function keyFor(userId)
+	return "player_" .. tostring(userId)
+end
+
+function DataService.Get(player)
+	if not player then
+		return nil
+	end
+	return profiles[player.UserId]
+end
+
+function DataService.IsLoaded(player)
+	return player ~= nil and loadedFlags[player.UserId] == true
+end
+
+-- Yields until the player's profile is loaded (or they leave).
+function DataService.WaitFor(player, timeout)
+	local deadline = os.clock() + (timeout or 15)
+	while not DataService.IsLoaded(player) do
+		if not player.Parent or os.clock() > deadline then
+			return nil
+		end
+		task.wait(0.1)
+	end
+	return profiles[player.UserId]
+end
+
+function DataService.Snapshot(player)
+	local profile = profiles[player.UserId]
+	if not profile then
+		return nil
+	end
+	local stats = {}
+	for statName, level in pairs(profile.Stats) do
+		stats[statName] = level
+	end
+	return {
+		Credits = profile.Credits,
+		Stats = stats,
+		MogScore = profile.MogScore,
+		Rebirths = profile.Rebirths,
+		LifetimeCredits = profile.LifetimeCredits,
+		CreditChecks = profile.CreditChecks,
+		LastCreditCheck = profile.LastCreditCheck,
+		LastGymRep = profile.LastGymRep,
+		LastRating = profile.LastRating,
+		PlayTime = profile.PlayTime,
+		ServerTime = os.time(),
+	}
+end
+
+-- Push a fresh snapshot to the client. Call after any mutation.
+function DataService.MarkDirty(player)
+	if not player or not player.Parent then
+		return
+	end
+	local snapshot = DataService.Snapshot(player)
+	if snapshot then
+		Remotes.Get("DataUpdated"):FireClient(player, snapshot)
+	end
+end
+
+local function load(player)
+	local userId = player.UserId
+	local template = buildTemplate()
+	local data = nil
+
+	local ds = getStore()
+	if ds then
+		for attempt = 1, SAVE_RETRIES do
+			local ok, result = pcall(function()
+				return ds:GetAsync(keyFor(userId))
+			end)
+			if ok then
+				data = result
+				break
+			end
+			warn(("[DataService] GetAsync failed for %d (attempt %d): %s"):format(userId, attempt, tostring(result)))
+			if attempt < SAVE_RETRIES then
+				task.wait(2 ^ attempt)
+			end
+		end
+	end
+
+	if type(data) ~= "table" then
+		data = template
+	else
+		reconcile(data, template)
+	end
+
+	data.LastJoin = os.time()
+	data._sessionStart = os.clock()
+
+	-- Player may have left while we were loading.
+	if not player.Parent then
+		return
+	end
+
+	profiles[userId] = data
+	loadedFlags[userId] = true
+	DataService.ProfileLoaded:Fire(player, data)
+	DataService.MarkDirty(player)
+end
+
+local function save(userId, profile)
+	if not profile then
+		return false
+	end
+	local ds = getStore()
+	if not ds then
+		return false
+	end
+
+	-- Bank session playtime into the saved total.
+	if profile._sessionStart then
+		profile.PlayTime = (profile.PlayTime or 0) + math.floor(os.clock() - profile._sessionStart)
+		profile._sessionStart = os.clock()
+	end
+
+	-- Strip transient fields before writing.
+	local toSave = {}
+	for key, value in pairs(profile) do
+		if type(key) == "string" and key:sub(1, 1) ~= "_" then
+			toSave[key] = value
+		end
+	end
+
+	for attempt = 1, SAVE_RETRIES do
+		local ok, err = pcall(function()
+			ds:UpdateAsync(keyFor(userId), function()
+				return toSave
+			end)
+		end)
+		if ok then
+			return true
+		end
+		warn(("[DataService] Save failed for %d (attempt %d): %s"):format(userId, attempt, tostring(err)))
+		if attempt < SAVE_RETRIES then
+			task.wait(2 ^ attempt)
+		end
+	end
+	return false
+end
+
+function DataService.Save(player)
+	local profile = profiles[player.UserId]
+	return save(player.UserId, profile)
+end
+
+local function onPlayerAdded(player)
+	task.spawn(load, player)
+end
+
+local function onPlayerRemoving(player)
+	local userId = player.UserId
+	local profile = profiles[userId]
+	if profile then
+		save(userId, profile)
+	end
+	profiles[userId] = nil
+	loadedFlags[userId] = nil
+end
+
+function DataService.Init()
+	Players.PlayerAdded:Connect(onPlayerAdded)
+	Players.PlayerRemoving:Connect(onPlayerRemoving)
+	for _, player in ipairs(Players:GetPlayers()) do
+		onPlayerAdded(player)
+	end
+
+	-- Client can explicitly ask for a snapshot (e.g. after its UI finishes building).
+	Remotes.Get("RequestData").OnServerEvent:Connect(function(player)
+		if DataService.IsLoaded(player) then
+			DataService.MarkDirty(player)
+		end
+	end)
+
+	-- Autosave loop.
+	task.spawn(function()
+		while true do
+			task.wait(Constants.AUTOSAVE_INTERVAL)
+			for userId, profile in pairs(profiles) do
+				task.spawn(save, userId, profile)
+			end
+		end
+	end)
+
+	-- Flush everyone when the server shuts down.
+	game:BindToClose(function()
+		local pending = 0
+		for userId, profile in pairs(profiles) do
+			pending += 1
+			task.spawn(function()
+				save(userId, profile)
+				pending -= 1
+			end)
+		end
+		local deadline = os.clock() + 25
+		while pending > 0 and os.clock() < deadline do
+			task.wait(0.1)
+		end
+	end)
+end
+
+return DataService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
+          <string name="Name">InteractionService</string>
+          <string name="Source"><![CDATA[--[[
+	InteractionService.lua
+	Wires the ProximityPrompts that MapBuilder creates to gameplay. Parts are
+	found by CollectionService tag so the map can be rearranged freely.
+]]
+
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local AntiExploit = require(script.Parent:WaitForChild("AntiExploit"))
+local CreditService = require(script.Parent:WaitForChild("CreditService"))
+
+local InteractionService = {}
+
+local function notify(player, kind, title, message)
+	Remotes.Get("Notify"):FireClient(player, kind, title, message)
+end
+
+local function promptOf(part)
+	return part:FindFirstChildOfClass("ProximityPrompt")
+end
+
+local function bind(tag, handler)
+	local function hook(part)
+		local prompt = promptOf(part)
+		if not prompt then
+			return
+		end
+		prompt.Triggered:Connect(function(player)
+			handler(player, part)
+		end)
+	end
+	for _, part in ipairs(CollectionService:GetTagged(tag)) do
+		hook(part)
+	end
+	CollectionService:GetInstanceAddedSignal(tag):Connect(hook)
+end
+
+function InteractionService.Init()
+	bind("GymBar", function(player)
+		if not AntiExploit.Allow(player, "GymRep") then
+			return
+		end
+		local payout, reason = CreditService.GymRep(player)
+		if not payout then
+			notify(player, "error", "Gym", reason)
+		end
+	end)
+
+	bind("RatingMirror", function(player)
+		if not AntiExploit.Allow(player, "RateSelf") then
+			return
+		end
+		local payout, reason = CreditService.RateSelf(player)
+		if not payout then
+			notify(player, "error", "Mirror", reason)
+		end
+	end)
+
+	bind("CreditCheckKiosk", function(player)
+		if not AntiExploit.Allow(player, "CreditCheck") then
+			return
+		end
+		local payout, reason = CreditService.CreditCheck(player)
+		if not payout then
+			notify(player, "error", "Credit Check", reason)
+		end
+	end)
+
+	bind("ShopStall", function(player, part)
+		local statName = part:GetAttribute("StatName")
+		Remotes.Get("OpenPanel"):FireClient(player, "Shop", statName)
+	end)
+
+	bind("RebirthAltar", function(player)
+		Remotes.Get("OpenPanel"):FireClient(player, "Rebirth")
+	end)
+
+	bind("LeaderboardBoard", function(player)
+		Remotes.Get("OpenPanel"):FireClient(player, "Leaderboard")
+	end)
+end
+
+return InteractionService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="13">
+        <Properties>
+          <string name="Name">LeaderboardService</string>
+          <string name="Source"><![CDATA[--[[
+	LeaderboardService.lua
+	Global top-10 by MogScore using an OrderedDataStore. Broadcasts to every
+	client and paints the physical board in the hub.
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local DataService = require(script.Parent:WaitForChild("DataService"))
+local StatService = require(script.Parent:WaitForChild("StatService"))
+
+local LeaderboardService = {}
+
+local REFRESH_INTERVAL = 60
+local WRITE_THROTTLE = 30 -- seconds between writes per player
+local TOP_N = 10
+
+local orderedStore = nil
+local lastWrite = {} -- [UserId] = os.clock()
+local pendingWrite = {} -- [UserId] = true
+local nameCache = {} -- [UserId] = displayName
+local latestEntries = {}
+
+local function getStore()
+	if orderedStore then
+		return orderedStore
+	end
+	local ok, result = pcall(function()
+		return DataStoreService:GetOrderedDataStore(Constants.LEADERBOARD_STORE_NAME)
+	end)
+	if ok then
+		orderedStore = result
+	else
+		warn("[Leaderboard] Could not get OrderedDataStore:", result)
+	end
+	return orderedStore
+end
+
+local function nameFor(userId)
+	if nameCache[userId] then
+		return nameCache[userId]
+	end
+	local online = Players:GetPlayerByUserId(userId)
+	if online then
+		nameCache[userId] = online.DisplayName
+		return online.DisplayName
+	end
+	local ok, name = pcall(function()
+		return Players:GetNameFromUserIdAsync(userId)
+	end)
+	nameCache[userId] = ok and name or ("User" .. tostring(userId))
+	return nameCache[userId]
+end
+
+local function writeScore(userId, score)
+	local ds = getStore()
+	if not ds then
+		return
+	end
+	local ok, err = pcall(function()
+		ds:SetAsync(tostring(userId), math.max(0, math.floor(score)))
+	end)
+	if not ok then
+		warn("[Leaderboard] SetAsync failed:", err)
+	end
+	lastWrite[userId] = os.clock()
+end
+
+function LeaderboardService.QueueUpdate(player)
+	local profile = DataService.Get(player)
+	if not profile then
+		return
+	end
+	local userId = player.UserId
+	local since = os.clock() - (lastWrite[userId] or 0)
+	if since >= WRITE_THROTTLE then
+		task.spawn(writeScore, userId, profile.MogScore or 0)
+	else
+		pendingWrite[userId] = true
+	end
+end
+
+local function flushPending()
+	for userId in pairs(pendingWrite) do
+		local player = Players:GetPlayerByUserId(userId)
+		local profile = player and DataService.Get(player)
+		if profile then
+			if os.clock() - (lastWrite[userId] or 0) >= WRITE_THROTTLE then
+				pendingWrite[userId] = nil
+				task.spawn(writeScore, userId, profile.MogScore or 0)
+			end
+		else
+			pendingWrite[userId] = nil
+		end
+	end
+end
+
+function LeaderboardService.FetchTop()
+	local ds = getStore()
+	if not ds then
+		return latestEntries
+	end
+	local ok, pages = pcall(function()
+		return ds:GetSortedAsync(false, TOP_N)
+	end)
+	if not ok then
+		warn("[Leaderboard] GetSortedAsync failed:", pages)
+		return latestEntries
+	end
+	local page = pages:GetCurrentPage()
+	local entries = {}
+	for rank, item in ipairs(page) do
+		local userId = tonumber(item.key)
+		entries[#entries + 1] = {
+			Rank = rank,
+			UserId = userId,
+			Name = nameFor(userId),
+			Score = item.value,
+		}
+	end
+	latestEntries = entries
+	return entries
+end
+
+local function paintBoard(entries)
+	local hub = Workspace:FindFirstChild("Hub")
+	local board = hub and hub:FindFirstChild("LeaderboardBoard", true)
+	local gui = board and board:FindFirstChildOfClass("SurfaceGui")
+	local list = gui and gui:FindFirstChild("Entries")
+	if not list then
+		return
+	end
+	for i = 1, TOP_N do
+		local row = list:FindFirstChild("Row" .. i)
+		if row then
+			local entry = entries[i]
+			local nameLabel = row:FindFirstChild("Name")
+			local scoreLabel = row:FindFirstChild("Score")
+			if entry then
+				local rank = Constants.GetRank(entry.Score)
+				if nameLabel then
+					nameLabel.Text = ("%d.  %s"):format(i, entry.Name)
+					nameLabel.TextColor3 = Color3.fromRGB(rank.Color[1], rank.Color[2], rank.Color[3])
+				end
+				if scoreLabel then
+					scoreLabel.Text = tostring(entry.Score)
+				end
+			else
+				if nameLabel then
+					nameLabel.Text = ("%d.  ---"):format(i)
+					nameLabel.TextColor3 = Color3.fromRGB(120, 120, 140)
+				end
+				if scoreLabel then
+					scoreLabel.Text = ""
+				end
+			end
+		end
+	end
+end
+
+function LeaderboardService.Refresh()
+	local entries = LeaderboardService.FetchTop()
+	Remotes.Get("LeaderboardUpdate"):FireAllClients(entries)
+	paintBoard(entries)
+end
+
+function LeaderboardService.Init()
+	StatService.ScoreChanged:Connect(function(player)
+		LeaderboardService.QueueUpdate(player)
+	end)
+
+	DataService.ProfileLoaded:Connect(function(player)
+		LeaderboardService.QueueUpdate(player)
+		-- New client wants the current board immediately.
+		task.delay(1, function()
+			if player.Parent then
+				Remotes.Get("LeaderboardUpdate"):FireClient(player, latestEntries)
+			end
+		end)
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		local profile = DataService.Get(player)
+		if profile then
+			writeScore(player.UserId, profile.MogScore or 0)
+		end
+		pendingWrite[player.UserId] = nil
+		lastWrite[player.UserId] = nil
+	end)
+
+	task.spawn(function()
+		task.wait(3)
+		LeaderboardService.Refresh()
+		while true do
+			task.wait(REFRESH_INTERVAL)
+			flushPending()
+			LeaderboardService.Refresh()
+		end
+	end)
+end
+
+return LeaderboardService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="14">
+        <Properties>
+          <string name="Name">LightingSetup</string>
+          <string name="Source"><![CDATA[--[[
+	LightingSetup.lua
+	Dusk "neon city" mood: warm horizon, cool shadows, heavy bloom on neon.
+]]
+
+local Lighting = game:GetService("Lighting")
+
+local LightingSetup = {}
+
+local function ensure(className, name, props)
+	local inst = Lighting:FindFirstChild(name)
+	if not inst then
+		inst = Instance.new(className)
+		inst.Name = name
+		inst.Parent = Lighting
+	end
+	for key, value in pairs(props) do
+		inst[key] = value
+	end
+	return inst
+end
+
+function LightingSetup.Apply()
+	Lighting.ClockTime = 19.1
+	Lighting.GeographicLatitude = 30
+	Lighting.Brightness = 2.4
+	Lighting.Ambient = Color3.fromRGB(38, 32, 56)
+	Lighting.OutdoorAmbient = Color3.fromRGB(70, 62, 100)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 205, 175)
+	Lighting.ColorShift_Bottom = Color3.fromRGB(130, 95, 170)
+	Lighting.EnvironmentDiffuseScale = 0.65
+	Lighting.EnvironmentSpecularScale = 0.7
+	Lighting.GlobalShadows = true
+	Lighting.ShadowSoftness = 0.25
+	Lighting.FogColor = Color3.fromRGB(28, 20, 46)
+	Lighting.FogStart = 180
+	Lighting.FogEnd = 900
+
+	ensure("Sky", "Sky", {
+		StarCount = 3500,
+		SunAngularSize = 16,
+		MoonAngularSize = 12,
+		CelestialBodiesShown = true,
+	})
+
+	ensure("Atmosphere", "Atmosphere", {
+		Density = 0.33,
+		Offset = 0.3,
+		Color = Color3.fromRGB(185, 165, 225),
+		Decay = Color3.fromRGB(70, 45, 110),
+		Glare = 0.45,
+		Haze = 1.9,
+	})
+
+	ensure("BloomEffect", "Bloom", {
+		Intensity = 0.85,
+		Size = 32,
+		Threshold = 1.0,
+	})
+
+	ensure("ColorCorrectionEffect", "ColorCorrection", {
+		Brightness = 0.02,
+		Contrast = 0.14,
+		Saturation = 0.22,
+		TintColor = Color3.fromRGB(255, 246, 252),
+	})
+
+	ensure("SunRaysEffect", "SunRays", {
+		Intensity = 0.06,
+		Spread = 0.8,
+	})
+end
+
+return LightingSetup
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="15">
+        <Properties>
+          <string name="Name">MapBuilder</string>
+          <string name="Source"><![CDATA[--[[
+	MapBuilder.lua
+	Procedurally builds the hub world on server start. Everything lives under
+	Workspace.Hub so it's easy to inspect, and the build is idempotent.
+
+	Layout (top-down, +Z is "south"):
+	          [MOG STAGE]        [LEADERBOARD]
+	  [GYM]     ( plaza + fountain )     [UPGRADE SHOPS x5]
+	      [MIRROR]                  [CREDIT CHECK]
+	                 [REBIRTH ALTAR]
+	Surrounded by a neon night skyline.
+]]
+
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+
+local MapBuilder = {}
+
+local C = {
+	Ground = Color3.fromRGB(24, 24, 31),
+	Plaza = Color3.fromRGB(46, 46, 60),
+	PlazaLight = Color3.fromRGB(66, 66, 84),
+	Path = Color3.fromRGB(58, 58, 72),
+	Metal = Color3.fromRGB(34, 34, 44),
+	MetalLight = Color3.fromRGB(120, 124, 140),
+	Marble = Color3.fromRGB(205, 200, 222),
+	MarbleDark = Color3.fromRGB(70, 64, 92),
+	Pink = Color3.fromRGB(255, 70, 190),
+	Cyan = Color3.fromRGB(80, 220, 255),
+	Purple = Color3.fromRGB(175, 95, 255),
+	Gold = Color3.fromRGB(255, 200, 60),
+	Green = Color3.fromRGB(90, 255, 150),
+	Orange = Color3.fromRGB(255, 120, 90),
+	White = Color3.fromRGB(245, 245, 255),
+	Black = Color3.fromRGB(10, 10, 14),
+}
+
+local STAT_COLORS = {
+	Jawline = C.Orange,
+	Hair = C.Gold,
+	Physique = C.Cyan,
+	Aura = C.Purple,
+	Fit = C.Pink,
+}
+
+local NEON_CYCLE = { C.Pink, C.Cyan, C.Purple, C.Gold }
+
+local ORIGIN = Vector3.new(0, 0, 0)
+
+-- ---------------------------------------------------------------------------
+-- Primitive helpers
+-- ---------------------------------------------------------------------------
+
+local function part(props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.SmoothPlastic
+	p.CanCollide = true
+	if props.Shape then
+		p.Shape = props.Shape
+	end
+	for key, value in pairs(props) do
+		if key ~= "Parent" and key ~= "Tag" and key ~= "Attributes" and key ~= "Shape" then
+			p[key] = value
+		end
+	end
+	if props.Tag then
+		CollectionService:AddTag(p, props.Tag)
+	end
+	if props.Attributes then
+		for k, v in pairs(props.Attributes) do
+			p:SetAttribute(k, v)
+		end
+	end
+	p.Parent = props.Parent
+	return p
+end
+
+-- Vertical cylinder (Roblox cylinders point along X by default).
+local function cylinder(height, diameter, position, props)
+	props = props or {}
+	props.Shape = Enum.PartType.Cylinder
+	props.Size = Vector3.new(height, diameter, diameter)
+	props.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
+	return part(props)
+end
+
+local function ball(diameter, position, props)
+	props = props or {}
+	props.Shape = Enum.PartType.Ball
+	props.Size = Vector3.new(diameter, diameter, diameter)
+	props.CFrame = CFrame.new(position)
+	return part(props)
+end
+
+local function neon(props)
+	props.Material = Enum.Material.Neon
+	props.CastShadow = false
+	return part(props)
+end
+
+local function pointLight(parent, color, range, brightness)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = range or 20
+	light.Brightness = brightness or 1.5
+	light.Shadows = false
+	light.Parent = parent
+	return light
+end
+
+local function sparkles(parent, color, rate, speed)
+	local e = Instance.new("ParticleEmitter")
+	e.Color = ColorSequence.new(color)
+	e.Rate = rate or 12
+	e.Lifetime = NumberRange.new(1, 1.8)
+	e.Speed = NumberRange.new(speed or 2, (speed or 2) + 1.5)
+	e.SpreadAngle = Vector2.new(35, 35)
+	e.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.5),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	e.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	e.LightEmission = 1
+	e.LightInfluence = 0
+	e.Acceleration = Vector3.new(0, 1.5, 0)
+	e.Parent = parent
+	return e
+end
+
+-- SurfaceGui sign with a title and optional subtitle on a face.
+local function sign(target, face, title, color, subtitle, pixelsPerStud)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Sign"
+	gui.Face = face or Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = pixelsPerStud or 40
+	gui.LightInfluence = 0
+	gui.Brightness = 2
+	gui.Parent = target
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "Title"
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Size = subtitle and UDim2.new(0.92, 0, 0.55, 0) or UDim2.new(0.92, 0, 0.8, 0)
+	titleLabel.Position = subtitle and UDim2.new(0.04, 0, 0.08, 0) or UDim2.new(0.04, 0, 0.1, 0)
+	titleLabel.Font = Enum.Font.GothamBlack
+	titleLabel.Text = title
+	titleLabel.TextScaled = true
+	titleLabel.TextColor3 = color
+	titleLabel.TextStrokeTransparency = 0.6
+	titleLabel.Parent = gui
+
+	if subtitle then
+		local subLabel = Instance.new("TextLabel")
+		subLabel.Name = "Subtitle"
+		subLabel.BackgroundTransparency = 1
+		subLabel.Size = UDim2.new(0.9, 0, 0.22, 0)
+		subLabel.Position = UDim2.new(0.05, 0, 0.66, 0)
+		subLabel.Font = Enum.Font.GothamMedium
+		subLabel.Text = subtitle
+		subLabel.TextScaled = true
+		subLabel.TextColor3 = Color3.fromRGB(215, 215, 230)
+		subLabel.TextTransparency = 0.1
+		subLabel.Parent = gui
+	end
+	return gui
+end
+
+local function prompt(target, actionText, objectText, holdDuration, distance)
+	local pp = Instance.new("ProximityPrompt")
+	pp.ActionText = actionText
+	pp.ObjectText = objectText or ""
+	pp.HoldDuration = holdDuration or 0
+	pp.MaxActivationDistance = distance or 10
+	pp.RequiresLineOfSight = false
+	pp.KeyboardKeyCode = Enum.KeyCode.E
+	pp.Parent = target
+	return pp
+end
+
+local function folder(name, parent)
+	local f = Instance.new("Folder")
+	f.Name = name
+	f.Parent = parent
+	return f
+end
+
+local function lookAtGround(pos, target)
+	return CFrame.lookAt(Vector3.new(pos.X, 0, pos.Z), Vector3.new(target.X, 0, target.Z))
+end
+
+local function bobAndSpin(inst, height, seconds)
+	local up = TweenService:Create(
+		inst,
+		TweenInfo.new(seconds or 2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Position = inst.Position + Vector3.new(0, height or 1, 0) }
+	)
+	up:Play()
+	local spin = TweenService:Create(
+		inst,
+		TweenInfo.new((seconds or 2.5) * 3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
+		{ Orientation = inst.Orientation + Vector3.new(0, 359, 0) }
+	)
+	spin:Play()
+end
+
+-- ---------------------------------------------------------------------------
+-- Sections
+-- ---------------------------------------------------------------------------
+
+local function buildGround(root)
+	local g = folder("Ground", root)
+	part({
+		Name = "Baseplate",
+		Size = Vector3.new(560, 4, 560),
+		Position = Vector3.new(0, -2, 0),
+		Color = C.Ground,
+		Material = Enum.Material.Slate,
+		Parent = g,
+	})
+	-- Invisible boundary so nobody falls into the void.
+	for _, def in ipairs({
+		{ Vector3.new(4, 120, 560), Vector3.new(280, 60, 0) },
+		{ Vector3.new(4, 120, 560), Vector3.new(-280, 60, 0) },
+		{ Vector3.new(560, 120, 4), Vector3.new(0, 60, 280) },
+		{ Vector3.new(560, 120, 4), Vector3.new(0, 60, -280) },
+	}) do
+		part({
+			Name = "Barrier",
+			Size = def[1],
+			Position = def[2],
+			Transparency = 1,
+			CastShadow = false,
+			Parent = g,
+		})
+	end
+end
+
+local function buildPlaza(root)
+	local f = folder("Plaza", root)
+	neon({
+		Name = "OuterRim",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.5, 124, 124),
+		CFrame = CFrame.new(0, 0.25, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = C.Purple,
+		Transparency = 0.15,
+		Parent = f,
+	})
+	cylinder(0.5, 120, Vector3.new(0, 0.35, 0), { Name = "PlazaFloor", Color = C.Plaza, Material = Enum.Material.Marble, Parent = f })
+	neon({
+		Name = "InnerRim",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.3, 44, 44),
+		CFrame = CFrame.new(0, 0.62, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = C.Cyan,
+		Transparency = 0.25,
+		Parent = f,
+	})
+	cylinder(0.3, 40, Vector3.new(0, 0.7, 0), { Name = "InnerFloor", Color = C.PlazaLight, Material = Enum.Material.Marble, Parent = f })
+
+	-- Fountain
+	local fountain = folder("Fountain", f)
+	cylinder(1.6, 18, Vector3.new(0, 1.65, 0), { Name = "Basin", Color = C.Marble, Material = Enum.Material.Marble, Parent = fountain })
+	local water = cylinder(0.6, 16, Vector3.new(0, 2.2, 0), {
+		Name = "Water",
+		Color = Color3.fromRGB(90, 180, 255),
+		Material = Enum.Material.Glass,
+		Transparency = 0.35,
+		Reflectance = 0.3,
+		CanCollide = false,
+		Parent = fountain,
+	})
+	local spray = Instance.new("ParticleEmitter")
+	spray.Color = ColorSequence.new(Color3.fromRGB(190, 230, 255))
+	spray.Rate = 40
+	spray.Lifetime = NumberRange.new(1.0, 1.4)
+	spray.Speed = NumberRange.new(9, 12)
+	spray.SpreadAngle = Vector2.new(12, 12)
+	spray.Size = NumberSequence.new(0.35)
+	spray.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+	spray.Acceleration = Vector3.new(0, -14, 0)
+	spray.LightEmission = 0.4
+	spray.Parent = water
+	cylinder(7, 2.4, Vector3.new(0, 5.9, 0), { Name = "Pillar", Color = C.Marble, Material = Enum.Material.Marble, Parent = fountain })
+	cylinder(0.8, 8, Vector3.new(0, 6.5, 0), { Name = "Tier", Color = C.Marble, Material = Enum.Material.Marble, Parent = fountain })
+	local orb = ball(
+		3.2,
+		Vector3.new(0, 10.5, 0),
+		{ Name = "Orb", Color = C.Cyan, Material = Enum.Material.Neon, CanCollide = false, Parent = fountain }
+	)
+	pointLight(orb, C.Cyan, 44, 2.2)
+	sparkles(orb, C.Cyan, 14, 2)
+	bobAndSpin(orb, 0.8, 3)
+
+	-- Spawns
+	local spawns = folder("Spawns", root)
+	for i = 0, 3 do
+		local angle = math.rad(45 + i * 90)
+		local pos = Vector3.new(math.cos(angle) * 32, 0, math.sin(angle) * 32)
+		neon({
+			Name = "SpawnGlow",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.2, 8.5, 8.5),
+			CFrame = CFrame.new(pos + Vector3.new(0, 0.95, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = C.Pink,
+			Transparency = 0.3,
+			CanCollide = false,
+			Parent = spawns,
+		})
+		local spawn = Instance.new("SpawnLocation")
+		spawn.Name = "Spawn" .. (i + 1)
+		spawn.Anchored = true
+		spawn.Size = Vector3.new(7, 0.6, 7)
+		spawn.Position = pos + Vector3.new(0, 1.15, 0)
+		spawn.Color = C.PlazaLight
+		spawn.Material = Enum.Material.Metal
+		spawn.TopSurface = Enum.SurfaceType.Smooth
+		spawn.Neutral = true
+		spawn.Duration = 0
+		spawn.Parent = spawns
+	end
+
+	-- Benches
+	for i = 0, 5 do
+		local angle = math.rad(i * 60 + 30)
+		local pos = Vector3.new(math.cos(angle) * 48, 0, math.sin(angle) * 48)
+		local cf = lookAtGround(pos, ORIGIN)
+		part({
+			Name = "Bench",
+			Size = Vector3.new(6, 0.5, 1.6),
+			CFrame = cf * CFrame.new(0, 1.6, 0),
+			Color = C.MarbleDark,
+			Material = Enum.Material.WoodPlanks,
+			Parent = f,
+		})
+		for _, dx in ipairs({ -2.4, 2.4 }) do
+			part({
+				Name = "BenchLeg",
+				Size = Vector3.new(0.5, 1.4, 1.4),
+				CFrame = cf * CFrame.new(dx, 0.7, 0),
+				Color = C.Metal,
+				Material = Enum.Material.Metal,
+				Parent = f,
+			})
+		end
+	end
+end
+
+local function buildPaths(root)
+	local f = folder("Paths", root)
+	local targets = {
+		Vector3.new(0, 0, -74),
+		Vector3.new(0, 0, 80),
+		Vector3.new(74, 0, 0),
+		Vector3.new(-42, 0, 57),
+		Vector3.new(42, 0, 57),
+		Vector3.new(-52, 0, -54),
+	}
+	for _, target in ipairs(targets) do
+		local dir = (target - ORIGIN).Unit
+		local start = dir * 56
+		local length = (target - start).Magnitude
+		if length > 2 then
+			local mid = (start + target) / 2
+			local cf = CFrame.lookAt(mid, target)
+			part({
+				Name = "Path",
+				Size = Vector3.new(10, 0.3, length),
+				CFrame = cf * CFrame.new(0, 0.15, 0),
+				Color = C.Path,
+				Material = Enum.Material.Pavement,
+				Parent = f,
+			})
+			neon({
+				Name = "PathEdge",
+				Size = Vector3.new(0.3, 0.2, length),
+				CFrame = cf * CFrame.new(-5.1, 0.25, 0),
+				Color = C.Pink,
+				Transparency = 0.45,
+				CanCollide = false,
+				Parent = f,
+			})
+			neon({
+				Name = "PathEdge",
+				Size = Vector3.new(0.3, 0.2, length),
+				CFrame = cf * CFrame.new(5.1, 0.25, 0),
+				Color = C.Cyan,
+				Transparency = 0.45,
+				CanCollide = false,
+				Parent = f,
+			})
+		end
+	end
+end
+
+local function buildStage(root)
+	local f = folder("Stage", root)
+	local center = Vector3.new(0, 0, -85)
+	part({
+		Name = "Platform",
+		Size = Vector3.new(48, 3, 20),
+		Position = center + Vector3.new(0, 1.5, 0),
+		Color = C.Metal,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	-- Steps toward the plaza
+	part({
+		Name = "Step",
+		Size = Vector3.new(14, 2, 2),
+		Position = Vector3.new(0, 1, -74),
+		Color = C.MetalLight,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	part({
+		Name = "Step",
+		Size = Vector3.new(14, 1, 2),
+		Position = Vector3.new(0, 0.5, -72),
+		Color = C.MetalLight,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	-- Edge neon
+	for _, def in ipairs({
+		{ Vector3.new(48.4, 0.5, 0.6), Vector3.new(0, 3.1, -75.1) },
+		{ Vector3.new(48.4, 0.5, 0.6), Vector3.new(0, 3.1, -94.9) },
+		{ Vector3.new(0.6, 0.5, 20), Vector3.new(-24.1, 3.1, -85) },
+		{ Vector3.new(0.6, 0.5, 20), Vector3.new(24.1, 3.1, -85) },
+	}) do
+		neon({ Name = "StageEdge", Size = def[1], Position = def[2], Color = C.Pink, CanCollide = false, Parent = f })
+	end
+	neon({
+		Name = "StageCenter",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 9, 9),
+		CFrame = CFrame.new(0, 3.1, -85) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = C.Pink,
+		Transparency = 0.35,
+		CanCollide = false,
+		Parent = f,
+	})
+
+	-- Backdrop + title
+	local backdrop = part({
+		Name = "Backdrop",
+		Size = Vector3.new(54, 26, 2),
+		CFrame = lookAtGround(Vector3.new(0, 0, -97), ORIGIN) * CFrame.new(0, 13, 0),
+		Color = C.Metal,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	sign(backdrop, Enum.NormalId.Front, "MOG STAGE", C.Pink, "show them what you built", 30)
+	for _, dx in ipairs({ -26.6, 26.6 }) do
+		neon({
+			Name = "BackdropEdge",
+			Size = Vector3.new(0.6, 26, 0.8),
+			Position = Vector3.new(dx, 13, -96.2),
+			Color = C.Cyan,
+			CanCollide = false,
+			Parent = f,
+		})
+	end
+	neon({
+		Name = "BackdropTop",
+		Size = Vector3.new(54.6, 0.6, 0.8),
+		Position = Vector3.new(0, 26.2, -96.2),
+		Color = C.Cyan,
+		CanCollide = false,
+		Parent = f,
+	})
+
+	-- Spotlights
+	local i = 0
+	for _, x in ipairs({ -28, 28 }) do
+		for _, z in ipairs({ -78, -85, -92 }) do
+			i += 1
+			part({
+				Name = "SpotPost",
+				Size = Vector3.new(0.8, 14, 0.8),
+				Position = Vector3.new(x, 7, z),
+				Color = C.Metal,
+				Material = Enum.Material.Metal,
+				Parent = f,
+			})
+			local headPos = Vector3.new(x, 14.6, z)
+			local head = part({
+				Name = "SpotHead",
+				Size = Vector3.new(1.8, 1.8, 2.4),
+				CFrame = CFrame.lookAt(headPos, center + Vector3.new(0, 3, 0)),
+				Color = C.Metal,
+				Material = Enum.Material.Metal,
+				Parent = f,
+			})
+			local color = NEON_CYCLE[(i % #NEON_CYCLE) + 1]
+			neon({
+				Name = "SpotLens",
+				Size = Vector3.new(1.4, 1.4, 0.3),
+				CFrame = head.CFrame * CFrame.new(0, 0, -1.25),
+				Color = color,
+				CanCollide = false,
+				Parent = f,
+			})
+			local spot = Instance.new("SpotLight")
+			spot.Angle = 42
+			spot.Brightness = 5
+			spot.Range = 48
+			spot.Color = color
+			spot.Face = Enum.NormalId.Front
+			spot.Shadows = true
+			spot.Parent = head
+		end
+	end
+end
+
+local function buildGym(root)
+	local f = folder("Gym", root)
+	local cx = -80
+	part({
+		Name = "Mat",
+		Size = Vector3.new(44, 0.5, 44),
+		Position = Vector3.new(cx, 0.25, 0),
+		Color = Color3.fromRGB(38, 38, 46),
+		Material = Enum.Material.Fabric,
+		Parent = f,
+	})
+	for _, def in ipairs({
+		{ Vector3.new(44.4, 0.3, 0.4), Vector3.new(cx, 0.6, -22.1) },
+		{ Vector3.new(44.4, 0.3, 0.4), Vector3.new(cx, 0.6, 22.1) },
+		{ Vector3.new(0.4, 0.3, 44), Vector3.new(cx - 22.1, 0.6, 0) },
+		{ Vector3.new(0.4, 0.3, 44), Vector3.new(cx + 22.1, 0.6, 0) },
+	}) do
+		neon({ Name = "MatEdge", Size = def[1], Position = def[2], Color = C.Cyan, Transparency = 0.2, CanCollide = false, Parent = f })
+	end
+	local wall = part({
+		Name = "GymWall",
+		Size = Vector3.new(44, 14, 2),
+		CFrame = lookAtGround(Vector3.new(cx, 0, -24), Vector3.new(cx, 0, 0)) * CFrame.new(0, 7, 0),
+		Color = C.Metal,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	sign(wall, Enum.NormalId.Front, "THE GYM", C.Cyan, "every rep pays. E to lift.", 30)
+	neon({
+		Name = "GymWallTop",
+		Size = Vector3.new(44.4, 0.5, 0.8),
+		Position = Vector3.new(cx, 14.2, -23.2),
+		Color = C.Cyan,
+		CanCollide = false,
+		Parent = f,
+	})
+
+	-- Squat rack + barbell
+	local rx, rz = cx - 12, -8
+	for _, dx in ipairs({ -3, 3 }) do
+		part({
+			Name = "RackPost",
+			Size = Vector3.new(1, 10, 1),
+			Position = Vector3.new(rx + dx, 5, rz),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+	end
+	part({
+		Name = "RackTop",
+		Size = Vector3.new(7, 0.6, 0.6),
+		Position = Vector3.new(rx, 10.2, rz),
+		Color = C.Metal,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	local barbell = part({
+		Name = "Barbell",
+		Size = Vector3.new(10, 0.35, 0.35),
+		Position = Vector3.new(rx, 6, rz),
+		Color = C.MetalLight,
+		Material = Enum.Material.Metal,
+		Tag = "GymBar",
+		Parent = f,
+	})
+	prompt(barbell, "Do a Rep", "Barbell", 0, 9)
+	for _, dx in ipairs({ -4.6, -3.9, 3.9, 4.6 }) do
+		part({
+			Name = "Plate",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.6, 3.2, 3.2),
+			CFrame = CFrame.new(rx + dx, 6, rz),
+			Color = C.Black,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = f,
+		})
+	end
+
+	-- Pull-up bar
+	local px, pz = cx + 12, -8
+	for _, dx in ipairs({ -3, 3 }) do
+		part({
+			Name = "PullPost",
+			Size = Vector3.new(0.8, 9, 0.8),
+			Position = Vector3.new(px + dx, 4.5, pz),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+	end
+	local pullBar = part({
+		Name = "PullUpBar",
+		Size = Vector3.new(7, 0.4, 0.4),
+		Position = Vector3.new(px, 9, pz),
+		Color = C.MetalLight,
+		Material = Enum.Material.Metal,
+		Tag = "GymBar",
+		Parent = f,
+	})
+	prompt(pullBar, "Do a Rep", "Pull-Up Bar", 0, 9)
+
+	-- Bench
+	local bx, bz = cx, 8
+	local bench = part({
+		Name = "Bench",
+		Size = Vector3.new(2.2, 0.6, 6),
+		Position = Vector3.new(bx, 1.7, bz),
+		Color = Color3.fromRGB(125, 30, 45),
+		Material = Enum.Material.Fabric,
+		Tag = "GymBar",
+		Parent = f,
+	})
+	prompt(bench, "Do a Rep", "Bench Press", 0, 9)
+	for _, dz in ipairs({ -2.4, 2.4 }) do
+		part({
+			Name = "BenchLeg",
+			Size = Vector3.new(0.5, 1.4, 0.5),
+			Position = Vector3.new(bx, 0.7, bz + dz),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+	end
+	for _, dx in ipairs({ -2.6, 2.6 }) do
+		part({
+			Name = "BenchPost",
+			Size = Vector3.new(0.6, 5, 0.6),
+			Position = Vector3.new(bx + dx, 2.5, bz - 1.5),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+	end
+	part({
+		Name = "BenchBar",
+		Size = Vector3.new(8, 0.3, 0.3),
+		Position = Vector3.new(bx, 5, bz - 1.5),
+		Color = C.MetalLight,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = f,
+	})
+
+	-- Dumbbell rack
+	local dx0, dz = cx, 18
+	part({
+		Name = "DumbbellRack",
+		Size = Vector3.new(12, 0.6, 2),
+		Position = Vector3.new(dx0, 2.5, dz),
+		Color = C.Metal,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	for _, dx in ipairs({ -5.5, 5.5 }) do
+		part({
+			Name = "RackLeg",
+			Size = Vector3.new(0.6, 2.5, 2),
+			Position = Vector3.new(dx0 + dx, 1.25, dz),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+	end
+	for i = -2, 2 do
+		local x = dx0 + i * 2
+		part({
+			Name = "DumbbellHandle",
+			Size = Vector3.new(1.6, 0.3, 0.3),
+			Position = Vector3.new(x, 3.1, dz),
+			Color = C.MetalLight,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = f,
+		})
+		for _, off in ipairs({ -0.75, 0.75 }) do
+			part({
+				Name = "DumbbellPlate",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.5, 1.2, 1.2),
+				CFrame = CFrame.new(x + off, 3.1, dz),
+				Color = C.Black,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = f,
+			})
+		end
+	end
+end
+
+local function buildShops(root)
+	local f = folder("Shops", root)
+	local zs = { -36, -18, 0, 18, 36 }
+	for i, statName in ipairs(Constants.STAT_ORDER) do
+		local def = Constants.STATS[statName]
+		local color = STAT_COLORS[statName] or C.White
+		local cz = zs[i]
+		part({
+			Name = "StallPad",
+			Size = Vector3.new(14, 0.4, 16),
+			Position = Vector3.new(82, 0.2, cz),
+			Color = C.PlazaLight,
+			Material = Enum.Material.Pavement,
+			Parent = f,
+		})
+		local back = part({
+			Name = "StallWall",
+			Size = Vector3.new(1.2, 10, 14),
+			CFrame = lookAtGround(Vector3.new(88, 0, cz), Vector3.new(0, 0, cz)) * CFrame.new(0, 5, 0),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+		sign(back, Enum.NormalId.Front, def.DisplayName:upper(), color, "upgrade station", 36)
+		local counter = part({
+			Name = statName .. "Counter",
+			Size = Vector3.new(2.4, 3.2, 10),
+			Position = Vector3.new(78, 1.6, cz),
+			Color = Color3.fromRGB(52, 52, 66),
+			Material = Enum.Material.Marble,
+			Tag = "ShopStall",
+			Attributes = { StatName = statName },
+			Parent = f,
+		})
+		prompt(counter, "Browse Upgrades", def.DisplayName .. " Shop", 0, 11)
+		neon({
+			Name = "CounterTrim",
+			Size = Vector3.new(0.3, 0.3, 10),
+			Position = Vector3.new(76.7, 3.25, cz),
+			Color = color,
+			CanCollide = false,
+			Parent = f,
+		})
+		part({
+			Name = "Canopy",
+			Size = Vector3.new(14, 0.5, 16),
+			Position = Vector3.new(82, 9.5, cz),
+			Color = Color3.fromRGB(30, 30, 40),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = f,
+		})
+		neon({
+			Name = "CanopyTrim",
+			Size = Vector3.new(0.4, 0.4, 16),
+			Position = Vector3.new(75.2, 9.3, cz),
+			Color = color,
+			CanCollide = false,
+			Parent = f,
+		})
+		for _, dz in ipairs({ -7.5, 7.5 }) do
+			part({
+				Name = "CanopyPost",
+				Size = Vector3.new(0.6, 9.5, 0.6),
+				Position = Vector3.new(75.5, 4.75, cz + dz),
+				Color = C.Metal,
+				Material = Enum.Material.Metal,
+				Parent = f,
+			})
+		end
+		local orb = ball(
+			1.6,
+			Vector3.new(78, 4.4, cz),
+			{ Name = "DisplayOrb", Color = color, Material = Enum.Material.Neon, CanCollide = false, Parent = f }
+		)
+		pointLight(orb, color, 18, 1.6)
+		bobAndSpin(orb, 0.4, 2 + i * 0.3)
+	end
+	-- Zone sign
+	part({
+		Name = "ShopSignPost",
+		Size = Vector3.new(1, 16, 1),
+		Position = Vector3.new(70, 8, -48),
+		Color = C.Metal,
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	local board = part({
+		Name = "ShopSign",
+		Size = Vector3.new(12, 4, 0.8),
+		CFrame = lookAtGround(Vector3.new(70, 0, -48), ORIGIN) * CFrame.new(0, 15, 0),
+		Color = C.Black,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = f,
+	})
+	sign(board, Enum.NormalId.Front, "UPGRADES", C.Gold, nil, 40)
+end
+
+local function buildMirror(root)
+	local f = folder("Mirror", root)
+	local base = lookAtGround(Vector3.new(-46, 0, 62), ORIGIN)
+	part({
+		Name = "MirrorBase",
+		Size = Vector3.new(12, 1, 4),
+		CFrame = base * CFrame.new(0, 0.5, 0),
+		Color = C.MarbleDark,
+		Material = Enum.Material.Marble,
+		Parent = f,
+	})
+	local frame = part({
+		Name = "MirrorFrame",
+		Size = Vector3.new(9, 15, 1.2),
+		CFrame = base * CFrame.new(0, 8.5, 0),
+		Color = Color3.fromRGB(205, 172, 92),
+		Material = Enum.Material.Metal,
+		Parent = f,
+	})
+	local glass = part({
+		Name = "MirrorGlass",
+		Size = Vector3.new(7.6, 13.4, 0.4),
+		CFrame = frame.CFrame * CFrame.new(0, 0, -0.5),
+		Color = Color3.fromRGB(215, 230, 255),
+		Material = Enum.Material.Glass,
+		Reflectance = 1,
+		Transparency = 0.05,
+		Tag = "RatingMirror",
+		Parent = f,
+	})
+	prompt(glass, "Check Your Mog", "The Mirror", 0.6, 11)
+	pointLight(glass, C.Pink, 22, 1.4)
+	neon({
+		Name = "MirrorTrim",
+		Size = Vector3.new(0.35, 15.2, 0.35),
+		CFrame = frame.CFrame * CFrame.new(-4.8, 0, -0.3),
+		Color = C.Pink,
+		CanCollide = false,
+		Parent = f,
+	})
+	neon({
+		Name = "MirrorTrim",
+		Size = Vector3.new(0.35, 15.2, 0.35),
+		CFrame = frame.CFrame * CFrame.new(4.8, 0, -0.3),
+		Color = C.Cyan,
+		CanCollide = false,
+		Parent = f,
+	})
+	local header = part({
+		Name = "MirrorHeader",
+		Size = Vector3.new(11, 2.4, 0.8),
+		CFrame = base * CFrame.new(0, 17.5, 0),
+		Color = C.Black,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = f,
+	})
+	sign(header, Enum.NormalId.Front, "RATE YOURSELF", C.Pink, nil, 40)
+end
+
+local function buildKiosk(root)
+	local f = folder("CreditCheck", root)
+	local base = lookAtGround(Vector3.new(46, 0, 62), ORIGIN)
+	local body = part({
+		Name = "KioskBody",
+		Size = Vector3.new(7, 9, 4),
+		CFrame = base * CFrame.new(0, 4.5, 0),
+		Color = Color3.fromRGB(28, 28, 38),
+		Material = Enum.Material.Metal,
+		Tag = "CreditCheckKiosk",
+		Parent = f,
+	})
+	prompt(body, "Run Credit Check", "Credit Check", 0.6, 12)
+	local screen = part({
+		Name = "KioskScreen",
+		Size = Vector3.new(5.2, 3.6, 0.3),
+		CFrame = body.CFrame * CFrame.new(0, 1.5, -2.15),
+		Color = Color3.fromRGB(10, 16, 13),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = f,
+	})
+	sign(screen, Enum.NormalId.Front, "CREDIT CHECK", C.Green, "verify score - get paid", 48)
+	part({
+		Name = "Keypad",
+		Size = Vector3.new(3, 1.6, 0.2),
+		CFrame = body.CFrame * CFrame.new(0, -1.2, -2.1),
+		Color = Color3.fromRGB(60, 60, 74),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = f,
+	})
+	neon({
+		Name = "Slot",
+		Size = Vector3.new(3.5, 0.3, 0.2),
+		CFrame = body.CFrame * CFrame.new(0, -2.6, -2.1),
+		Color = C.Green,
+		CanCollide = false,
+		Parent = f,
+	})
+	local roof = part({
+		Name = "KioskRoof",
+		Size = Vector3.new(8, 1.8, 4.4),
+		CFrame = body.CFrame * CFrame.new(0, 5.4, 0),
+		Color = C.Black,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = f,
+	})
+	sign(roof, Enum.NormalId.Front, "$ CREDITS $", C.Green, nil, 48)
+	neon({
+		Name = "RoofTrim",
+		Size = Vector3.new(8.2, 0.4, 4.6),
+		CFrame = body.CFrame * CFrame.new(0, 4.4, 0),
+		Color = C.Green,
+		CanCollide = false,
+		Parent = f,
+	})
+	local lamp = neon({
+		Name = "KioskLamp",
+		Size = Vector3.new(0.6, 0.6, 0.6),
+		CFrame = body.CFrame * CFrame.new(0, 3.8, -2.6),
+		Color = C.Green,
+		CanCollide = false,
+		Parent = f,
+	})
+	pointLight(lamp, C.Green, 20, 1.8)
+end
+
+local function buildAltar(root)
+	local f = folder("Altar", root)
+	local center = Vector3.new(0, 0, 92)
+	cylinder(1, 22, center + Vector3.new(0, 0.5, 0), { Name = "Tier1", Color = C.MarbleDark, Material = Enum.Material.Marble, Parent = f })
+	neon({
+		Name = "Ring",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 17.5, 17.5),
+		CFrame = CFrame.new(center + Vector3.new(0, 1.1, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = C.Purple,
+		Transparency = 0.2,
+		CanCollide = false,
+		Parent = f,
+	})
+	cylinder(1, 16, center + Vector3.new(0, 1.5, 0), { Name = "Tier2", Color = C.MarbleDark, Material = Enum.Material.Marble, Parent = f })
+	neon({
+		Name = "Ring",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 11.5, 11.5),
+		CFrame = CFrame.new(center + Vector3.new(0, 2.1, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = C.Purple,
+		Transparency = 0.2,
+		CanCollide = false,
+		Parent = f,
+	})
+	cylinder(
+		1,
+		10,
+		center + Vector3.new(0, 2.5, 0),
+		{ Name = "Tier3", Color = Color3.fromRGB(58, 48, 86), Material = Enum.Material.Marble, Parent = f }
+	)
+
+	for i = 0, 3 do
+		local angle = math.rad(45 + i * 90)
+		local pos = center + Vector3.new(math.cos(angle) * 13, 0, math.sin(angle) * 13)
+		part({
+			Name = "AltarPillar",
+			Size = Vector3.new(1.6, 14, 1.6),
+			Position = pos + Vector3.new(0, 7, 0),
+			Color = C.MarbleDark,
+			Material = Enum.Material.Marble,
+			Parent = f,
+		})
+		local cap = ball(
+			2,
+			pos + Vector3.new(0, 15, 0),
+			{ Name = "PillarCap", Color = C.Purple, Material = Enum.Material.Neon, CanCollide = false, Parent = f }
+		)
+		pointLight(cap, C.Purple, 18, 1.2)
+	end
+
+	local orb = ball(
+		4.5,
+		center + Vector3.new(0, 9, 0),
+		{ Name = "RebirthOrb", Color = C.Purple, Material = Enum.Material.Neon, CanCollide = false, Tag = "RebirthAltar", Parent = f }
+	)
+	prompt(orb, "Rebirth", "Altar of Rebirth", 1, 14)
+	pointLight(orb, C.Purple, 40, 3)
+	sparkles(orb, C.Purple, 22, 3)
+	bobAndSpin(orb, 1.2, 2.5)
+
+	local header = part({
+		Name = "AltarHeader",
+		Size = Vector3.new(16, 3.2, 0.8),
+		CFrame = lookAtGround(center + Vector3.new(0, 0, 12), ORIGIN) * CFrame.new(0, 18, 0),
+		Color = C.Black,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = f,
+	})
+	sign(header, Enum.NormalId.Front, "REBIRTH", C.Purple, "reset. come back stronger.", 40)
+end
+
+local function buildLeaderboard(root)
+	local f = folder("Leaderboard", root)
+	local base = lookAtGround(Vector3.new(-56, 0, -58), ORIGIN)
+	for _, dx in ipairs({ -9, 9 }) do
+		part({
+			Name = "BoardPost",
+			Size = Vector3.new(1.2, 9, 1.2),
+			CFrame = base * CFrame.new(dx, 4.5, 0),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+	end
+	local screen = part({
+		Name = "LeaderboardBoard",
+		Size = Vector3.new(24, 15, 1.2),
+		CFrame = base * CFrame.new(0, 15.5, 0),
+		Color = Color3.fromRGB(12, 12, 18),
+		Material = Enum.Material.SmoothPlastic,
+		Tag = "LeaderboardBoard",
+		Parent = f,
+	})
+	prompt(screen, "Open Leaderboard", "Top Moggers", 0, 18)
+	for _, def in ipairs({
+		{ Vector3.new(24.6, 0.5, 1.4), Vector3.new(0, 7.75, 0) },
+		{ Vector3.new(24.6, 0.5, 1.4), Vector3.new(0, -7.75, 0) },
+		{ Vector3.new(0.5, 15.6, 1.4), Vector3.new(-12.3, 0, 0) },
+		{ Vector3.new(0.5, 15.6, 1.4), Vector3.new(12.3, 0, 0) },
+	}) do
+		neon({
+			Name = "BoardTrim",
+			Size = def[1],
+			CFrame = screen.CFrame * CFrame.new(def[2]),
+			Color = C.Gold,
+			CanCollide = false,
+			Parent = f,
+		})
+	end
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "BoardGui"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0
+	gui.Brightness = 1.6
+	gui.Parent = screen
+
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0.13, 0)
+	title.Position = UDim2.new(0, 0, 0.02, 0)
+	title.Font = Enum.Font.GothamBlack
+	title.Text = "TOP MOGGERS"
+	title.TextScaled = true
+	title.TextColor3 = C.Gold
+	title.Parent = gui
+
+	local entries = Instance.new("Frame")
+	entries.Name = "Entries"
+	entries.BackgroundTransparency = 1
+	entries.Size = UDim2.new(0.92, 0, 0.8, 0)
+	entries.Position = UDim2.new(0.04, 0, 0.17, 0)
+	entries.Parent = gui
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = entries
+
+	for i = 1, 10 do
+		local row = Instance.new("Frame")
+		row.Name = "Row" .. i
+		row.LayoutOrder = i
+		row.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(22, 22, 32) or Color3.fromRGB(28, 28, 40)
+		row.BorderSizePixel = 0
+		row.Size = UDim2.new(1, 0, 0.09, 0)
+		row.Parent = entries
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = row
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Name = "Name"
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Size = UDim2.new(0.7, -10, 1, 0)
+		nameLabel.Position = UDim2.new(0, 10, 0, 0)
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.Text = ("%d.  ---"):format(i)
+		nameLabel.TextScaled = true
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.TextColor3 = Color3.fromRGB(120, 120, 140)
+		nameLabel.Parent = row
+
+		local scoreLabel = Instance.new("TextLabel")
+		scoreLabel.Name = "Score"
+		scoreLabel.BackgroundTransparency = 1
+		scoreLabel.Size = UDim2.new(0.3, -10, 1, 0)
+		scoreLabel.Position = UDim2.new(0.7, 0, 0, 0)
+		scoreLabel.Font = Enum.Font.GothamBlack
+		scoreLabel.Text = ""
+		scoreLabel.TextScaled = true
+		scoreLabel.TextXAlignment = Enum.TextXAlignment.Right
+		scoreLabel.TextColor3 = C.White
+		scoreLabel.Parent = row
+	end
+end
+
+local function buildLamps(root)
+	local f = folder("Lamps", root)
+	for i = 0, 9 do
+		local angle = math.rad(i * 36)
+		local pos = Vector3.new(math.cos(angle) * 62, 0, math.sin(angle) * 62)
+		part({
+			Name = "LampPost",
+			Size = Vector3.new(0.7, 11, 0.7),
+			Position = pos + Vector3.new(0, 5.5, 0),
+			Color = C.Metal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+		local color = NEON_CYCLE[(i % #NEON_CYCLE) + 1]
+		local head = ball(
+			1.8,
+			pos + Vector3.new(0, 11.6, 0),
+			{ Name = "LampHead", Color = color, Material = Enum.Material.Neon, CanCollide = false, Parent = f }
+		)
+		pointLight(head, color, 30, 1.6)
+	end
+end
+
+local function buildSkyline(root)
+	local f = folder("Skyline", root)
+	local rng = Random.new(7)
+	local grays = {
+		Color3.fromRGB(30, 30, 40),
+		Color3.fromRGB(38, 36, 50),
+		Color3.fromRGB(26, 28, 36),
+		Color3.fromRGB(44, 42, 58),
+	}
+	for i = 1, 40 do
+		local angle = (i / 40) * math.pi * 2 + rng:NextNumber(-0.05, 0.05)
+		local radius = 175 + rng:NextNumber(0, 55)
+		local w = rng:NextNumber(14, 34)
+		local d = rng:NextNumber(14, 34)
+		local h = rng:NextNumber(35, 130)
+		local pos = Vector3.new(math.cos(angle) * radius, h / 2, math.sin(angle) * radius)
+		local cf = CFrame.lookAt(pos, Vector3.new(0, h / 2, 0))
+		part({
+			Name = "Building",
+			Size = Vector3.new(w, h, d),
+			CFrame = cf,
+			Color = grays[rng:NextInteger(1, #grays)],
+			Material = Enum.Material.Concrete,
+			Parent = f,
+		})
+		local accent = NEON_CYCLE[rng:NextInteger(1, #NEON_CYCLE)]
+		neon({
+			Name = "RoofNeon",
+			Size = Vector3.new(w + 0.4, 0.5, 0.6),
+			CFrame = cf * CFrame.new(0, h / 2 + 0.25, -d / 2),
+			Color = accent,
+			Transparency = 0.1,
+			CanCollide = false,
+			Parent = f,
+		})
+		for _, dx in ipairs({ -w * 0.28, w * 0.28 }) do
+			neon({
+				Name = "Window",
+				Size = Vector3.new(0.5, h * 0.7, 0.3),
+				CFrame = cf * CFrame.new(dx, 0, -d / 2 - 0.1),
+				Color = accent,
+				Transparency = 0.55,
+				CanCollide = false,
+				Parent = f,
+			})
+		end
+	end
+end
+
+-- ---------------------------------------------------------------------------
+
+function MapBuilder.Build()
+	if Workspace:FindFirstChild("Hub") then
+		return Workspace.Hub
+	end
+	local root = folder("Hub", Workspace)
+	buildGround(root)
+	buildPlaza(root)
+	buildPaths(root)
+	buildStage(root)
+	buildGym(root)
+	buildShops(root)
+	buildMirror(root)
+	buildKiosk(root)
+	buildAltar(root)
+	buildLeaderboard(root)
+	buildLamps(root)
+	buildSkyline(root)
+	return root
+end
+
+return MapBuilder
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="16">
+        <Properties>
+          <string name="Name">PresenceService</string>
+          <string name="Source"><![CDATA[--[[
+	PresenceService.lua
+	Everything other players can *see* about your progress: an overhead tag
+	with rank + Mog Score, and an aura particle effect that grows with rank.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+
+local DataService = require(script.Parent:WaitForChild("DataService"))
+local StatService = require(script.Parent:WaitForChild("StatService"))
+
+local PresenceService = {}
+
+local function rankIndex(rank)
+	for i, r in ipairs(Constants.RANKS) do
+		if r.Name == rank.Name then
+			return i
+		end
+	end
+	return 1
+end
+
+local function ensureTag(character)
+	local head = character:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	local gui = head:FindFirstChild("MogTag")
+	if gui then
+		return gui
+	end
+
+	gui = Instance.new("BillboardGui")
+	gui.Name = "MogTag"
+	gui.Size = UDim2.fromOffset(220, 60)
+	gui.StudsOffset = Vector3.new(0, 2.6, 0)
+	gui.AlwaysOnTop = false
+	gui.MaxDistance = 90
+	gui.LightInfluence = 0
+	gui.ResetOnSpawn = false
+
+	local rankLabel = Instance.new("TextLabel")
+	rankLabel.Name = "Rank"
+	rankLabel.BackgroundTransparency = 1
+	rankLabel.Size = UDim2.new(1, 0, 0.55, 0)
+	rankLabel.Position = UDim2.new(0, 0, 0, 0)
+	rankLabel.Font = Enum.Font.GothamBlack
+	rankLabel.TextScaled = true
+	rankLabel.TextStrokeTransparency = 0.2
+	rankLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	rankLabel.Text = "NPC"
+	rankLabel.Parent = gui
+
+	local scoreLabel = Instance.new("TextLabel")
+	scoreLabel.Name = "Score"
+	scoreLabel.BackgroundTransparency = 1
+	scoreLabel.Size = UDim2.new(1, 0, 0.45, 0)
+	scoreLabel.Position = UDim2.new(0, 0, 0.55, 0)
+	scoreLabel.Font = Enum.Font.GothamBold
+	scoreLabel.TextScaled = true
+	scoreLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
+	scoreLabel.TextStrokeTransparency = 0.3
+	scoreLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	scoreLabel.Text = "0 Mog"
+	scoreLabel.Parent = gui
+
+	gui.Parent = head
+	return gui
+end
+
+local function ensureAura(character)
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+	local emitter = root:FindFirstChild("Aura")
+	if emitter then
+		return emitter
+	end
+	emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "Aura"
+	emitter.Rate = 0
+	emitter.Lifetime = NumberRange.new(0.8, 1.4)
+	emitter.Speed = NumberRange.new(1, 2)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.LightEmission = 0.8
+	emitter.LightInfluence = 0
+	emitter.Acceleration = Vector3.new(0, 3, 0)
+	emitter.Parent = root
+	return emitter
+end
+
+local function refresh(player)
+	local character = player.Character
+	local profile = DataService.Get(player)
+	if not character or not profile then
+		return
+	end
+	local score = profile.MogScore or 0
+	local rank = Constants.GetRank(score)
+	local color = Color3.fromRGB(rank.Color[1], rank.Color[2], rank.Color[3])
+
+	local gui = ensureTag(character)
+	if gui then
+		local rankLabel = gui:FindFirstChild("Rank")
+		local scoreLabel = gui:FindFirstChild("Score")
+		if rankLabel then
+			rankLabel.Text = rank.Name
+			rankLabel.TextColor3 = color
+		end
+		if scoreLabel then
+			local rebirths = profile.Rebirths or 0
+			scoreLabel.Text = rebirths > 0 and ("%d Mog  |  R%d"):format(score, rebirths) or ("%d Mog"):format(score)
+		end
+	end
+
+	local emitter = ensureAura(character)
+	if emitter then
+		local idx = rankIndex(rank)
+		-- NPC/Mid get nothing; each rank above that turns the aura up.
+		emitter.Rate = math.max(0, (idx - 2) * 6)
+		emitter.Color = ColorSequence.new(color)
+	end
+end
+
+local function watch(player)
+	player.CharacterAdded:Connect(function()
+		task.wait(0.2)
+		refresh(player)
+	end)
+	if player.Character then
+		refresh(player)
+	end
+end
+
+function PresenceService.Init()
+	Players.PlayerAdded:Connect(watch)
+	for _, player in ipairs(Players:GetPlayers()) do
+		watch(player)
+	end
+
+	DataService.ProfileLoaded:Connect(function(player)
+		refresh(player)
+	end)
+
+	StatService.ScoreChanged:Connect(function(player)
+		refresh(player)
+	end)
+end
+
+return PresenceService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="17">
+        <Properties>
+          <string name="Name">RebirthService</string>
+          <string name="Source"><![CDATA[--[[
+	RebirthService.lua
+	Prestige loop. Reaching the requirement lets a player reset their stats
+	and credits back to the starting 100 in exchange for a permanent
+	multiplier on all future gains.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local DataService = require(script.Parent:WaitForChild("DataService"))
+local StatService = require(script.Parent:WaitForChild("StatService"))
+
+local RebirthService = {}
+
+local function notify(player, kind, title, message)
+	Remotes.Get("Notify"):FireClient(player, kind, title, message)
+end
+
+function RebirthService.GetRequirement(profile)
+	return Constants.GetRebirthRequirement(profile.Rebirths or 0)
+end
+
+function RebirthService.CanRebirth(player)
+	local profile = DataService.Get(player)
+	if not profile then
+		return false, "Your data is still loading."
+	end
+	local requirement = RebirthService.GetRequirement(profile)
+	if (profile.MogScore or 0) < requirement then
+		return false, ("Need %d Mog Score to rebirth (you have %d)."):format(requirement, profile.MogScore or 0)
+	end
+	return true
+end
+
+function RebirthService.Rebirth(player)
+	local ok, reason = RebirthService.CanRebirth(player)
+	if not ok then
+		return false, reason
+	end
+	local profile = DataService.Get(player)
+
+	for statName in pairs(Constants.STATS) do
+		profile.Stats[statName] = 0
+	end
+	profile.Credits = Constants.STARTING_CREDITS
+	profile.Rebirths = (profile.Rebirths or 0) + 1
+	StatService.Recalculate(player)
+	DataService.MarkDirty(player)
+	DataService.Save(player)
+
+	local multiplier = Constants.GetRebirthMultiplier(profile.Rebirths)
+	notify(
+		player,
+		"success",
+		("Rebirth %d"):format(profile.Rebirths),
+		("Fresh start with %d Credits. Permanent x%.2f multiplier."):format(Constants.STARTING_CREDITS, multiplier)
+	)
+	return true
+end
+
+function RebirthService.Init()
+	Remotes.Get("Rebirth").OnServerEvent:Connect(function(player)
+		local AntiExploit = require(script.Parent:WaitForChild("AntiExploit"))
+		if not AntiExploit.Allow(player, "Rebirth") then
+			return
+		end
+		local ok, reason = RebirthService.Rebirth(player)
+		if not ok then
+			notify(player, "error", "Rebirth", reason)
+		end
+	end)
+end
+
+return RebirthService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="18">
+        <Properties>
+          <string name="Name">StatService</string>
+          <string name="Source"><![CDATA[--[[
+	StatService.lua
+	Stat upgrades and MogScore calculation. MogScore is always derived from
+	saved stat levels, never stored independently as the source of truth.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+local Signal = require(Shared:WaitForChild("Signal"))
+
+local DataService = require(script.Parent:WaitForChild("DataService"))
+local CreditService = require(script.Parent:WaitForChild("CreditService"))
+
+local StatService = {}
+
+StatService.ScoreChanged = Signal.new() -- fires (player, newScore)
+
+local function notify(player, kind, title, message)
+	Remotes.Get("Notify"):FireClient(player, kind, title, message)
+end
+
+function StatService.ComputeScore(profile)
+	local score = 0
+	for statName, def in pairs(Constants.STATS) do
+		local level = tonumber(profile.Stats[statName]) or 0
+		score += level * def.ScorePerLevel
+	end
+	return math.floor(score * Constants.GetRebirthMultiplier(profile.Rebirths or 0))
+end
+
+function StatService.Recalculate(player)
+	local profile = DataService.Get(player)
+	if not profile then
+		return 0
+	end
+	local newScore = StatService.ComputeScore(profile)
+	if newScore ~= profile.MogScore then
+		profile.MogScore = newScore
+		StatService.ScoreChanged:Fire(player, newScore)
+	end
+	return newScore
+end
+
+-- Buys `count` levels (default 1). Stops early if credits run out.
+-- Returns bought (number), or 0 + reason.
+function StatService.BuyStat(player, statName, count)
+	local profile = DataService.Get(player)
+	if not profile then
+		return 0, "Your data is still loading."
+	end
+	local def = Constants.STATS[statName]
+	if not def then
+		return 0, "Unknown stat."
+	end
+	count = math.clamp(math.floor(tonumber(count) or 1), 1, 50)
+
+	local startLevel = tonumber(profile.Stats[statName]) or 0
+	local level = startLevel
+	local bought = 0
+	local failReason = nil
+
+	for _ = 1, count do
+		if level >= def.MaxLevel then
+			failReason = def.DisplayName .. " is already maxed."
+			break
+		end
+		local cost = Constants.GetStatCost(statName, level)
+		if not CreditService.Spend(player, cost) then
+			failReason = ("Need %d Credits for %s."):format(cost, def.DisplayName)
+			break
+		end
+		level += 1
+		bought += 1
+	end
+
+	if bought == 0 then
+		return 0, failReason
+	end
+
+	profile.Stats[statName] = level
+	local rankBefore = Constants.GetRank(StatService.ComputeScoreAtLevel(profile, statName, startLevel))
+	StatService.Recalculate(player)
+	DataService.MarkDirty(player)
+
+	local rankAfter = Constants.GetRank(profile.MogScore)
+	if rankBefore.Name ~= rankAfter.Name then
+		notify(player, "success", "Rank Up!", "You are now " .. rankAfter.Name .. ".")
+	end
+	return bought
+end
+
+-- Helper: what would MogScore be if `statName` were at `level`? Used to detect rank ups.
+function StatService.ComputeScoreAtLevel(profile, statName, level)
+	local score = 0
+	for name, def in pairs(Constants.STATS) do
+		local lvl = (name == statName) and level or (tonumber(profile.Stats[name]) or 0)
+		score += lvl * def.ScorePerLevel
+	end
+	return math.floor(score * Constants.GetRebirthMultiplier(profile.Rebirths or 0))
+end
+
+function StatService.Init()
+	Remotes.Get("BuyStat").OnServerEvent:Connect(function(player, statName, count)
+		local AntiExploit = require(script.Parent:WaitForChild("AntiExploit"))
+		if not AntiExploit.Allow(player, "BuyStat") then
+			return
+		end
+		if type(statName) ~= "string" then
+			return
+		end
+		local bought, reason = StatService.BuyStat(player, statName, count)
+		if bought == 0 then
+			notify(player, "error", "Shop", reason)
+		end
+	end)
+
+	-- Make sure MogScore is correct the moment data loads.
+	DataService.ProfileLoaded:Connect(function(player)
+		StatService.Recalculate(player)
+		DataService.MarkDirty(player)
+	end)
+end
+
+return StatService
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="19">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="20">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="21">
+        <Properties>
+          <string name="Name">Client</string>
+        </Properties>
+        <Item class="ModuleScript" referent="22">
+          <Properties>
+            <string name="Name">ClientState</string>
+            <string name="Source"><![CDATA[--[[
+	ClientState.lua
+	Read-only mirror of the server's snapshot for this player, plus the latest
+	leaderboard. UI subscribes to Changed / LeaderboardChanged.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+local Signal = require(Shared:WaitForChild("Signal"))
+
+local ClientState = {}
+
+ClientState.Data = nil
+ClientState.Leaderboard = {}
+ClientState.Changed = Signal.new()
+ClientState.LeaderboardChanged = Signal.new()
+
+-- Offset between server os.time() and local os.time(), for cooldown display.
+local serverOffset = 0
+
+function ClientState.Get()
+	return ClientState.Data
+end
+
+function ClientState.ServerNow()
+	return os.time() + serverOffset
+end
+
+function ClientState.Rank()
+	local data = ClientState.Data
+	return Constants.GetRank(data and data.MogScore or 0)
+end
+
+function ClientState.NextRank()
+	local score = ClientState.Data and ClientState.Data.MogScore or 0
+	for _, rank in ipairs(Constants.RANKS) do
+		if rank.MinScore > score then
+			return rank
+		end
+	end
+	return nil
+end
+
+function ClientState.Multiplier()
+	local data = ClientState.Data
+	return Constants.GetRebirthMultiplier(data and data.Rebirths or 0)
+end
+
+-- Seconds remaining on a cooldown, given the profile timestamp field and duration.
+function ClientState.CooldownRemaining(field, duration)
+	local data = ClientState.Data
+	if not data then
+		return 0
+	end
+	local last = tonumber(data[field]) or 0
+	return math.max(0, (last + duration) - ClientState.ServerNow())
+end
+
+function ClientState.Init()
+	Remotes.Get("DataUpdated").OnClientEvent:Connect(function(snapshot)
+		if type(snapshot) ~= "table" then
+			return
+		end
+		if snapshot.ServerTime then
+			serverOffset = snapshot.ServerTime - os.time()
+		end
+		ClientState.Data = snapshot
+		ClientState.Changed:Fire(snapshot)
+	end)
+
+	Remotes.Get("LeaderboardUpdate").OnClientEvent:Connect(function(entries)
+		ClientState.Leaderboard = type(entries) == "table" and entries or {}
+		ClientState.LeaderboardChanged:Fire(ClientState.Leaderboard)
+	end)
+
+	Remotes.Get("RequestData"):FireServer()
+end
+
+return ClientState
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="23">
+          <Properties>
+            <string name="Name">HudController</string>
+            <string name="Source"><![CDATA[--[[
+	HudController.lua
+	Always-on HUD: stat card (credits, score, rank, multiplier, rank progress),
+	cooldown pills, menu buttons, and a fading hint bar for new players.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+
+local ClientState = require(script.Parent:WaitForChild("ClientState"))
+local Theme = require(script.Parent:WaitForChild("Theme"))
+local UI = require(script.Parent:WaitForChild("UIBuilder"))
+
+local HudController = {}
+
+local player = Players.LocalPlayer
+
+local creditsValue = nil -- NumberValue driving the count-up animation
+local scoreValue = nil
+local creditsLabel, scoreLabel, rankBadge, rankLabel, multLabel, nextRankLabel
+local rankBar
+local cooldownPills = {}
+
+local function animateNumber(valueObj, target)
+	valueObj.Value = valueObj.Value -- ensure exists
+	TweenService:Create(valueObj, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Value = target }):Play()
+end
+
+local function buildStatCard(parent)
+	local card = UI.Box({
+		Name = "StatCard",
+		Position = UDim2.fromOffset(16, 16),
+		Size = UDim2.fromOffset(300, 176),
+		BackgroundColor3 = Theme.Colors.Panel,
+		StrokeColor = Theme.Colors.Accent,
+		Parent = parent,
+	})
+	UI.Padding(card, 16, 14)
+
+	-- Credits
+	UI.Text({
+		Size = UDim2.new(1, 0, 0, 14),
+		Position = UDim2.fromOffset(0, 0),
+		Font = Theme.FontMedium,
+		TextSize = 11,
+		Text = "CREDITS",
+		TextColor3 = Theme.Colors.TextDim,
+		Parent = card,
+	})
+	creditsLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 34),
+		Position = UDim2.fromOffset(0, 14),
+		Font = Theme.FontBlack,
+		TextSize = 30,
+		Text = "0",
+		TextColor3 = Theme.Colors.Gold,
+		Parent = card,
+	})
+
+	-- Score
+	UI.Text({
+		Size = UDim2.new(0.5, 0, 0, 14),
+		Position = UDim2.fromOffset(0, 56),
+		Font = Theme.FontMedium,
+		TextSize = 11,
+		Text = "MOG SCORE",
+		TextColor3 = Theme.Colors.TextDim,
+		Parent = card,
+	})
+	scoreLabel = UI.Text({
+		Size = UDim2.new(0.55, 0, 0, 28),
+		Position = UDim2.fromOffset(0, 70),
+		Font = Theme.FontBlack,
+		TextSize = 24,
+		Text = "0",
+		TextColor3 = Theme.Colors.Accent,
+		Parent = card,
+	})
+
+	-- Rank badge
+	rankBadge = UI.Box({
+		Name = "RankBadge",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, 0, 0, 58),
+		Size = UDim2.fromOffset(120, 40),
+		BackgroundColor3 = Theme.Colors.PanelLight,
+		StrokeColor = Theme.Colors.Stroke,
+		Corner = 10,
+		Parent = card,
+	})
+	rankLabel = UI.Text({
+		Size = UDim2.new(1, 0, 1, 0),
+		Font = Theme.FontBlack,
+		TextSize = 15,
+		Text = "NPC",
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextScaled = true,
+		Parent = rankBadge,
+	})
+	UI.Padding(rankBadge, 8, 6)
+
+	-- Multiplier pill
+	multLabel = UI.Text({
+		Size = UDim2.new(0.45, 0, 0, 14),
+		Position = UDim2.new(0.55, 0, 0, 104),
+		Font = Theme.Font,
+		TextSize = 12,
+		Text = "x1.00 bonus",
+		TextColor3 = Theme.Colors.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = card,
+	})
+
+	-- Next rank progress
+	nextRankLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 14),
+		Position = UDim2.fromOffset(0, 104),
+		Font = Theme.FontMedium,
+		TextSize = 11,
+		Text = "NEXT: Mid",
+		TextColor3 = Theme.Colors.TextDim,
+		Parent = card,
+	})
+	rankBar = UI.ProgressBar({
+		Name = "RankBar",
+		Size = UDim2.new(1, 0, 0, 16),
+		Position = UDim2.fromOffset(0, 122),
+		Color = Theme.Colors.Accent,
+		Parent = card,
+	})
+
+	return card
+end
+
+local function buildCooldownPills(parent)
+	local holder = UI.Create("Frame", {
+		Name = "Cooldowns",
+		Position = UDim2.fromOffset(16, 204),
+		Size = UDim2.fromOffset(300, 32),
+		BackgroundTransparency = 1,
+		Parent = parent,
+	})
+	UI.List(holder, 8, Enum.FillDirection.Horizontal)
+
+	local function pill(name, label)
+		local frame = UI.Box({
+			Name = name,
+			Size = UDim2.fromOffset(146, 30),
+			BackgroundColor3 = Theme.Colors.Panel,
+			StrokeColor = Theme.Colors.Stroke,
+			Corner = 15,
+			Parent = holder,
+		})
+		local text = UI.Text({
+			Size = UDim2.new(1, 0, 1, 0),
+			Font = Theme.Font,
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Text = label,
+			Parent = frame,
+		})
+		local stroke = frame:FindFirstChildOfClass("UIStroke")
+		cooldownPills[name] = { Frame = frame, Text = text, Stroke = stroke, Label = label }
+	end
+	pill("CreditCheck", "CREDIT CHECK")
+	pill("Mirror", "MIRROR")
+end
+
+local function buildMenuButtons(parent, panels)
+	local holder = UI.Create("Frame", {
+		Name = "Menu",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -16, 0.5, 0),
+		Size = UDim2.fromOffset(150, 220),
+		BackgroundTransparency = 1,
+		Parent = parent,
+	})
+	UI.List(holder, 10, Enum.FillDirection.Vertical, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
+
+	local defs = {
+		{ "SHOP", Theme.Colors.Gold, panels.Shop, Color3.fromRGB(30, 26, 12) },
+		{ "LEADERBOARD", Theme.Colors.Cyan, panels.Leaderboard, Color3.fromRGB(10, 26, 32) },
+		{ "REBIRTH", Theme.Colors.Accent, panels.Rebirth, Theme.Colors.Text },
+	}
+	for i, def in ipairs(defs) do
+		UI.Button({
+			Name = def[1],
+			Text = def[1],
+			Size = UDim2.fromOffset(150, 48),
+			Color = def[2],
+			TextColor = def[4],
+			TextSize = 16,
+			LayoutOrder = i,
+			Parent = holder,
+			OnClick = function()
+				for _, p in pairs(panels) do
+					if p ~= def[3] and p.IsOpen() then
+						p.Close()
+					end
+				end
+				def[3].Toggle()
+			end,
+		})
+	end
+end
+
+local function buildHint(parent)
+	local hint = UI.Box({
+		Name = "Hint",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		Size = UDim2.fromOffset(620, 40),
+		BackgroundColor3 = Theme.Colors.Panel,
+		StrokeColor = Theme.Colors.Accent2,
+		Corner = 20,
+		Parent = parent,
+	})
+	local text = UI.Text({
+		Size = UDim2.new(1, 0, 1, 0),
+		Font = Theme.Font,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "Walk up to a <b>Shop stall</b>, the <b>Gym</b>, the <b>Mirror</b>, or the <b>Credit Check</b> kiosk and press <b>E</b>.",
+		Parent = hint,
+	})
+	task.delay(18, function()
+		TweenService:Create(hint, Theme.Tween.Slow, { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(text, Theme.Tween.Slow, { TextTransparency = 1 }):Play()
+		local stroke = hint:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			TweenService:Create(stroke, Theme.Tween.Slow, { Transparency = 1 }):Play()
+		end
+		task.wait(0.6)
+		hint:Destroy()
+	end)
+end
+
+local function refresh(data)
+	if not data then
+		return
+	end
+	animateNumber(creditsValue, data.Credits or 0)
+	animateNumber(scoreValue, data.MogScore or 0)
+
+	local rank = Constants.GetRank(data.MogScore or 0)
+	local rankColor = Theme.RankColor(rank)
+	rankLabel.Text = rank.Name
+	rankLabel.TextColor3 = rankColor
+	local stroke = rankBadge:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		TweenService:Create(stroke, Theme.Tween.Normal, { Color = rankColor }):Play()
+	end
+
+	local mult = Constants.GetRebirthMultiplier(data.Rebirths or 0)
+	multLabel.Text = ("x%.2f bonus  |  R%d"):format(mult, data.Rebirths or 0)
+	multLabel.TextColor3 = (data.Rebirths or 0) > 0 and Theme.Colors.Accent or Theme.Colors.TextDim
+
+	local nextRank = ClientState.NextRank()
+	if nextRank then
+		local span = nextRank.MinScore - rank.MinScore
+		local into = (data.MogScore or 0) - rank.MinScore
+		local alpha = span > 0 and (into / span) or 1
+		nextRankLabel.Text = ('NEXT RANK: <font color="#%s">%s</font>'):format(Theme.RankColor(nextRank):ToHex(), nextRank.Name)
+		rankBar.Set(alpha, ("%s / %s"):format(Theme.Format(data.MogScore or 0), Theme.Format(nextRank.MinScore)))
+		rankBar.SetColor(Theme.RankColor(nextRank))
+	else
+		nextRankLabel.Text = "MAX RANK"
+		rankBar.Set(1, "Living Legend")
+		rankBar.SetColor(rankColor)
+	end
+end
+
+local function tickCooldowns()
+	local defs = {
+		CreditCheck = { "LastCreditCheck", Constants.CREDIT_CHECK_COOLDOWN },
+		Mirror = { "LastRating", Constants.RATING_BOOTH_COOLDOWN },
+	}
+	for name, pill in pairs(cooldownPills) do
+		local def = defs[name]
+		local remaining = ClientState.CooldownRemaining(def[1], def[2])
+		if remaining <= 0 then
+			pill.Text.Text = pill.Label .. ": <b>READY</b>"
+			pill.Text.TextColor3 = Theme.Colors.Green
+			if pill.Stroke then
+				pill.Stroke.Color = Theme.Colors.Green
+			end
+		else
+			pill.Text.Text = pill.Label .. ": " .. Theme.FormatTime(remaining)
+			pill.Text.TextColor3 = Theme.Colors.TextDim
+			if pill.Stroke then
+				pill.Stroke.Color = Theme.Colors.Stroke
+			end
+		end
+	end
+end
+
+function HudController.Init(screenGui, panels)
+	creditsValue = Instance.new("NumberValue")
+	scoreValue = Instance.new("NumberValue")
+
+	buildStatCard(screenGui)
+	buildCooldownPills(screenGui)
+	buildMenuButtons(screenGui, panels)
+	buildHint(screenGui)
+
+	creditsValue.Changed:Connect(function(v)
+		creditsLabel.Text = Theme.Format(v)
+	end)
+	scoreValue.Changed:Connect(function(v)
+		scoreLabel.Text = Theme.Format(v)
+	end)
+
+	ClientState.Changed:Connect(refresh)
+	if ClientState.Get() then
+		refresh(ClientState.Get())
+	end
+
+	-- Cooldown ticker (1 Hz).
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc >= 1 then
+			acc = 0
+			tickCooldowns()
+		end
+	end)
+	tickCooldowns()
+
+	-- Rank-up flash on the badge.
+	local lastRankName = nil
+	ClientState.Changed:Connect(function(data)
+		local rank = Constants.GetRank(data.MogScore or 0)
+		if lastRankName and rank.Name ~= lastRankName then
+			local flash = UI.Create("UIScale", { Scale = 1, Parent = rankBadge })
+			local t =
+				TweenService:Create(flash, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), { Scale = 1.25 })
+			t:Play()
+			t.Completed:Connect(function()
+				flash:Destroy()
+			end)
+		end
+		lastRankName = rank.Name
+	end)
+
+	-- Keep the character name visible in the HUD so people know whose stats these are.
+	UI.Text({
+		Name = "Who",
+		Position = UDim2.fromOffset(20, 194),
+		Size = UDim2.fromOffset(300, 12),
+		Font = Theme.FontMedium,
+		TextSize = 10,
+		Text = player.DisplayName,
+		TextColor3 = Theme.Colors.TextDim,
+		Parent = screenGui,
+	})
+end
+
+return HudController
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="24">
+          <Properties>
+            <string name="Name">LeaderboardController</string>
+            <string name="Source"><![CDATA[--[[
+	LeaderboardController.lua
+	Global top-10 panel. Highlights the local player if they're on it.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+
+local ClientState = require(script.Parent:WaitForChild("ClientState"))
+local Theme = require(script.Parent:WaitForChild("Theme"))
+local UI = require(script.Parent:WaitForChild("UIBuilder"))
+
+local LeaderboardController = {}
+
+local player = Players.LocalPlayer
+local panel = nil
+local rows = {}
+local footer = nil
+
+local MEDALS = { Theme.Colors.Gold, Color3.fromRGB(200, 200, 215), Color3.fromRGB(205, 130, 80) }
+
+local function buildRow(parent, i)
+	local row = UI.Box({
+		Name = "Row" .. i,
+		Size = UDim2.new(1, -8, 0, 40),
+		BackgroundColor3 = (i % 2 == 0) and Theme.Colors.Panel or Theme.Colors.Row,
+		StrokeColor = Theme.Colors.Stroke,
+		Corner = 8,
+		LayoutOrder = i,
+		Parent = parent,
+	})
+	UI.Padding(row, 12, 6)
+	local rankLabel = UI.Text({
+		Size = UDim2.fromOffset(34, 28),
+		Font = Theme.FontBlack,
+		TextSize = 16,
+		Text = tostring(i),
+		TextColor3 = MEDALS[i] or Theme.Colors.TextDim,
+		Parent = row,
+	})
+	local nameLabel = UI.Text({
+		Size = UDim2.new(1, -150, 0, 28),
+		Position = UDim2.fromOffset(38, 0),
+		Font = Theme.Font,
+		TextSize = 15,
+		Text = "---",
+		Parent = row,
+	})
+	local scoreLabel = UI.Text({
+		Size = UDim2.fromOffset(110, 28),
+		Position = UDim2.new(1, -110, 0, 0),
+		Font = Theme.FontBlack,
+		TextSize = 15,
+		Text = "",
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = Theme.Colors.Accent,
+		Parent = row,
+	})
+	rows[i] = { Frame = row, Rank = rankLabel, Name = nameLabel, Score = scoreLabel, Stroke = row:FindFirstChildOfClass("UIStroke") }
+end
+
+local function refresh(entries)
+	if not panel then
+		return
+	end
+	local mine = nil
+	for i = 1, 10 do
+		local row = rows[i]
+		local entry = entries and entries[i]
+		if entry then
+			local rank = Constants.GetRank(entry.Score or 0)
+			row.Name.Text = ('%s  <font color="#%s" size="12">%s</font>'):format(
+				entry.Name or "?",
+				Theme.RankColor(rank):ToHex(),
+				rank.Name
+			)
+			row.Name.TextColor3 = Theme.Colors.Text
+			row.Score.Text = Theme.Format(entry.Score or 0)
+			local isMe = entry.UserId == player.UserId
+			if isMe then
+				mine = i
+			end
+			row.Stroke.Color = isMe and Theme.Colors.Cyan or Theme.Colors.Stroke
+			row.Stroke.Thickness = isMe and 2.5 or 1.5
+		else
+			row.Name.Text = "---"
+			row.Name.TextColor3 = Theme.Colors.TextDim
+			row.Score.Text = ""
+			row.Stroke.Color = Theme.Colors.Stroke
+			row.Stroke.Thickness = 1.5
+		end
+	end
+	local data = ClientState.Get()
+	if mine then
+		footer.Text = ("You are <b>#%d</b> in the world. Updates every minute."):format(mine)
+	else
+		footer.Text = ("Your Mog Score: <b>%s</b>. Not on the board yet. Updates every minute."):format(
+			Theme.Format(data and data.MogScore or 0)
+		)
+	end
+end
+
+function LeaderboardController.Init(screenGui)
+	panel = UI.Panel({
+		Name = "Leaderboard",
+		Title = "TOP MOGGERS",
+		Subtitle = "Global top 10 by Mog Score.",
+		Accent = Theme.Colors.Cyan,
+		Width = 520,
+		Height = 600,
+		Parent = screenGui,
+		OnOpen = function()
+			refresh(ClientState.Leaderboard)
+		end,
+	})
+
+	local list = UI.Create("Frame", {
+		Name = "List",
+		Size = UDim2.new(1, 0, 1, -36),
+		BackgroundTransparency = 1,
+		ZIndex = 12,
+		Parent = panel.Content,
+	})
+	UI.List(list, 6)
+	for i = 1, 10 do
+		buildRow(list, i)
+	end
+
+	footer = UI.Text({
+		Name = "Footer",
+		Size = UDim2.new(1, 0, 0, 24),
+		Position = UDim2.new(0, 0, 1, -24),
+		Font = Theme.FontMedium,
+		TextSize = 12,
+		Text = "",
+		TextColor3 = Theme.Colors.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Parent = panel.Content,
+	})
+
+	ClientState.LeaderboardChanged:Connect(refresh)
+	ClientState.Changed:Connect(function()
+		if panel.IsOpen() then
+			refresh(ClientState.Leaderboard)
+		end
+	end)
+	refresh(ClientState.Leaderboard)
+end
+
+function LeaderboardController.Panel()
+	return panel
+end
+
+return LeaderboardController
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="25">
+          <Properties>
+            <string name="Name">NotificationController</string>
+            <string name="Source"><![CDATA[--[[
+	NotificationController.lua
+	Toast notifications in the bottom-right. Server fires Notify(kind, title, message).
+	Kinds: "success" | "error" | "info"
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local Theme = require(script.Parent:WaitForChild("Theme"))
+local UI = require(script.Parent:WaitForChild("UIBuilder"))
+
+local NotificationController = {}
+
+local container = nil
+local order = 0
+
+local KIND_COLORS = {
+	success = Theme.Colors.Green,
+	error = Theme.Colors.Red,
+	info = Theme.Colors.Cyan,
+}
+
+local LIFETIME = 4.2
+
+function NotificationController.Show(kind, title, message)
+	if not container then
+		return
+	end
+	local accent = KIND_COLORS[kind] or Theme.Colors.Accent
+	order += 1
+
+	local toast = UI.Box({
+		Name = "Toast",
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = Theme.Colors.Panel,
+		StrokeColor = accent,
+		LayoutOrder = order,
+		Parent = container,
+	})
+	local scale = UI.Create("UIScale", { Scale = 0.8, Parent = toast })
+	UI.Padding(toast, 14, 12)
+
+	UI.Create("Frame", {
+		Name = "Bar",
+		Size = UDim2.new(0, 4, 1, 0),
+		Position = UDim2.fromOffset(-14, 0),
+		BackgroundColor3 = accent,
+		BorderSizePixel = 0,
+		Parent = toast,
+	})
+
+	local body = UI.Create("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = toast,
+	})
+	UI.List(body, 4)
+
+	UI.Text({
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = Theme.FontBlack,
+		TextSize = 16,
+		Text = tostring(title or ""),
+		TextColor3 = accent,
+		LayoutOrder = 1,
+		Parent = body,
+	})
+	UI.Text({
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Font = Theme.FontMedium,
+		TextSize = 14,
+		Text = tostring(message or ""),
+		TextWrapped = true,
+		TextColor3 = Theme.Colors.Text,
+		LayoutOrder = 2,
+		Parent = body,
+	})
+
+	TweenService:Create(scale, Theme.Tween.Pop, { Scale = 1 }):Play()
+
+	task.delay(LIFETIME, function()
+		if not toast.Parent then
+			return
+		end
+		local t = TweenService:Create(scale, Theme.Tween.Normal, { Scale = 0.8 })
+		TweenService:Create(toast, Theme.Tween.Normal, { BackgroundTransparency = 1 }):Play()
+		for _, d in ipairs(toast:GetDescendants()) do
+			if d:IsA("TextLabel") then
+				TweenService:Create(d, Theme.Tween.Normal, { TextTransparency = 1 }):Play()
+			elseif d:IsA("Frame") then
+				TweenService:Create(d, Theme.Tween.Normal, { BackgroundTransparency = 1 }):Play()
+			elseif d:IsA("UIStroke") then
+				TweenService:Create(d, Theme.Tween.Normal, { Transparency = 1 }):Play()
+			end
+		end
+		t:Play()
+		t.Completed:Wait()
+		toast:Destroy()
+	end)
+end
+
+function NotificationController.Init(screenGui)
+	container = UI.Create("Frame", {
+		Name = "Toasts",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -20, 1, -20),
+		Size = UDim2.fromOffset(340, 420),
+		BackgroundTransparency = 1,
+		ZIndex = 50,
+		Parent = screenGui,
+	})
+	UI.List(container, 8, Enum.FillDirection.Vertical, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Bottom)
+
+	Remotes.Get("Notify").OnClientEvent:Connect(function(kind, title, message)
+		NotificationController.Show(kind, title, message)
+	end)
+end
+
+return NotificationController
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="26">
+          <Properties>
+            <string name="Name">RebirthController</string>
+            <string name="Source"><![CDATA[--[[
+	RebirthController.lua
+	Rebirth panel with progress toward the requirement, before/after
+	multiplier, and a two-click confirm so nobody rebirths by accident.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local ClientState = require(script.Parent:WaitForChild("ClientState"))
+local Theme = require(script.Parent:WaitForChild("Theme"))
+local UI = require(script.Parent:WaitForChild("UIBuilder"))
+
+local RebirthController = {}
+
+local panel = nil
+local bar = nil
+local statusLabel, currentLabel, nextLabel, resetLabel
+local confirmButton = nil
+local armed = false
+local armToken = 0
+
+local function refresh(data)
+	if not panel or not data then
+		return
+	end
+	local rebirths = data.Rebirths or 0
+	local requirement = Constants.GetRebirthRequirement(rebirths)
+	local score = data.MogScore or 0
+	local alpha = requirement > 0 and math.clamp(score / requirement, 0, 1) or 1
+	bar.Set(alpha, ("%s / %s Mog Score"):format(Theme.Format(score), Theme.Format(requirement)))
+
+	local currentMult = Constants.GetRebirthMultiplier(rebirths)
+	local nextMult = Constants.GetRebirthMultiplier(rebirths + 1)
+	currentLabel.Text = ("Rebirths: <b>%d</b>    Current bonus: <b>x%.2f</b>"):format(rebirths, currentMult)
+	nextLabel.Text = ('After rebirth: <font color="#%s"><b>x%.2f</b></font> on all Credits and Mog Score, forever.'):format(
+		Theme.Colors.Accent:ToHex(),
+		nextMult
+	)
+	resetLabel.Text = ("Resets all 5 stats to 0 and Credits back to <b>%d</b>."):format(Constants.STARTING_CREDITS)
+
+	local ready = score >= requirement
+	statusLabel.Text = ready and "<b>READY.</b> The altar is calling."
+		or ("Need <b>%s</b> more Mog Score."):format(Theme.Format(requirement - score))
+	statusLabel.TextColor3 = ready and Theme.Colors.Green or Theme.Colors.TextDim
+	confirmButton.SetEnabled(ready)
+	if not ready then
+		armed = false
+		confirmButton.SetText("REBIRTH")
+	end
+end
+
+function RebirthController.Init(screenGui)
+	panel = UI.Panel({
+		Name = "Rebirth",
+		Title = "REBIRTH",
+		Subtitle = "Start over. Come back stronger.",
+		Accent = Theme.Colors.Accent,
+		Width = 500,
+		Height = 400,
+		Parent = screenGui,
+		OnOpen = function()
+			armed = false
+			if confirmButton then
+				confirmButton.SetText("REBIRTH")
+			end
+			refresh(ClientState.Get())
+		end,
+	})
+
+	local content = panel.Content
+	UI.List(content, 12)
+
+	statusLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 24),
+		Font = Theme.FontBlack,
+		TextSize = 18,
+		Text = "",
+		LayoutOrder = 1,
+		Parent = content,
+	})
+	bar = UI.ProgressBar({
+		Size = UDim2.new(1, 0, 0, 22),
+		Color = Theme.Colors.Accent,
+		LayoutOrder = 2,
+		Parent = content,
+	})
+	currentLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = Theme.Font,
+		TextSize = 14,
+		LayoutOrder = 3,
+		Parent = content,
+	})
+	nextLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 40),
+		Font = Theme.Font,
+		TextSize = 14,
+		TextWrapped = true,
+		LayoutOrder = 4,
+		Parent = content,
+	})
+	resetLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = Theme.FontMedium,
+		TextSize = 13,
+		TextColor3 = Theme.Colors.Red,
+		LayoutOrder = 5,
+		Parent = content,
+	})
+
+	local spacer = UI.Create("Frame", { Size = UDim2.new(1, 0, 0, 6), BackgroundTransparency = 1, LayoutOrder = 6, Parent = content })
+	spacer.Name = "Spacer"
+
+	confirmButton = UI.Button({
+		Name = "Confirm",
+		Text = "REBIRTH",
+		Size = UDim2.new(1, 0, 0, 52),
+		Color = Theme.Colors.Accent,
+		TextSize = 18,
+		LayoutOrder = 7,
+		Parent = content,
+		OnClick = function()
+			if not armed then
+				armed = true
+				armToken += 1
+				local token = armToken
+				confirmButton.SetText("CLICK AGAIN TO CONFIRM")
+				task.delay(4, function()
+					if armToken == token and armed then
+						armed = false
+						confirmButton.SetText("REBIRTH")
+					end
+				end)
+				return
+			end
+			armed = false
+			confirmButton.SetText("REBIRTH")
+			Remotes.Get("Rebirth"):FireServer()
+			panel.Close()
+		end,
+	})
+
+	ClientState.Changed:Connect(refresh)
+	refresh(ClientState.Get())
+end
+
+function RebirthController.Panel()
+	return panel
+end
+
+return RebirthController
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="27">
+          <Properties>
+            <string name="Name">ShopController</string>
+            <string name="Source"><![CDATA[--[[
+	ShopController.lua
+	Upgrade shop: one card per stat with level, next cost, and Buy 1 / Buy 10.
+	Everything shown is derived from the server snapshot; the server re-checks.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local ClientState = require(script.Parent:WaitForChild("ClientState"))
+local Theme = require(script.Parent:WaitForChild("Theme"))
+local UI = require(script.Parent:WaitForChild("UIBuilder"))
+
+local ShopController = {}
+
+local panel = nil
+local balanceLabel = nil
+local cards = {} -- [statName] = {Level=, Cost=, Cost10=, Buy1=, Buy10=, Stroke=}
+
+local function costForN(statName, level, n)
+	local def = Constants.STATS[statName]
+	local total = 0
+	for i = 0, n - 1 do
+		if level + i >= def.MaxLevel then
+			break
+		end
+		total += Constants.GetStatCost(statName, level + i)
+	end
+	return total
+end
+
+local function buildCard(parent, statName, order)
+	local def = Constants.STATS[statName]
+	local color = Theme.StatColors[statName] or Theme.Colors.Accent
+
+	local card = UI.Box({
+		Name = statName,
+		Size = UDim2.new(1, -8, 0, 130),
+		BackgroundColor3 = Theme.Colors.Row,
+		StrokeColor = Theme.Colors.Stroke,
+		LayoutOrder = order,
+		Parent = parent,
+	})
+	UI.Padding(card, 14, 12)
+
+	UI.Create("Frame", {
+		Name = "Accent",
+		Size = UDim2.new(0, 4, 1, 0),
+		Position = UDim2.fromOffset(-14, 0),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		Parent = card,
+	})
+
+	UI.Text({
+		Size = UDim2.new(0.6, 0, 0, 24),
+		Font = Theme.FontBlack,
+		TextSize = 20,
+		Text = def.DisplayName,
+		TextColor3 = color,
+		Parent = card,
+	})
+	local levelLabel = UI.Text({
+		Size = UDim2.new(0.4, 0, 0, 24),
+		Position = UDim2.new(0.6, 0, 0, 0),
+		Font = Theme.Font,
+		TextSize = 14,
+		Text = "Lv. 0",
+		TextColor3 = Theme.Colors.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = card,
+	})
+	UI.Text({
+		Size = UDim2.new(1, 0, 0, 16),
+		Position = UDim2.fromOffset(0, 26),
+		Font = Theme.FontMedium,
+		TextSize = 12,
+		Text = Theme.StatBlurbs[statName] or "",
+		TextColor3 = Theme.Colors.TextDim,
+		Parent = card,
+	})
+	UI.Text({
+		Size = UDim2.new(1, 0, 0, 16),
+		Position = UDim2.fromOffset(0, 44),
+		Font = Theme.Font,
+		TextSize = 12,
+		Text = ("+%d Mog Score per level"):format(def.ScorePerLevel),
+		TextColor3 = Theme.Colors.Text,
+		Parent = card,
+	})
+
+	local buy1 = UI.Button({
+		Name = "Buy1",
+		Text = "BUY 1",
+		Size = UDim2.fromOffset(150, 34),
+		Position = UDim2.new(0, 0, 1, -34),
+		Color = color,
+		TextColor = Color3.fromRGB(18, 18, 24),
+		TextSize = 14,
+		Corner = 8,
+		Parent = card,
+		OnClick = function()
+			Remotes.Get("BuyStat"):FireServer(statName, 1)
+		end,
+	})
+	local buy10 = UI.Button({
+		Name = "Buy10",
+		Text = "BUY 10",
+		Size = UDim2.fromOffset(150, 34),
+		Position = UDim2.new(0, 162, 1, -34),
+		Color = Theme.Colors.PanelLight,
+		TextColor = Theme.Colors.Text,
+		TextSize = 14,
+		Corner = 8,
+		Parent = card,
+		OnClick = function()
+			Remotes.Get("BuyStat"):FireServer(statName, 10)
+		end,
+	})
+
+	cards[statName] = {
+		Frame = card,
+		Level = levelLabel,
+		Buy1 = buy1,
+		Buy10 = buy10,
+		Stroke = card:FindFirstChildOfClass("UIStroke"),
+		Color = color,
+	}
+end
+
+local function refresh(data)
+	if not data or not panel then
+		return
+	end
+	balanceLabel.Text = ('Balance: <font color="#%s"><b>%s</b></font> Credits'):format(
+		Theme.Colors.Gold:ToHex(),
+		Theme.Format(data.Credits or 0)
+	)
+	for statName, card in pairs(cards) do
+		local def = Constants.STATS[statName]
+		local level = tonumber(data.Stats and data.Stats[statName]) or 0
+		local maxed = level >= def.MaxLevel
+		card.Level.Text = maxed and ("Lv. %d  MAX"):format(level) or ("Lv. %d / %d"):format(level, def.MaxLevel)
+
+		local cost1 = Constants.GetStatCost(statName, level) or 0
+		local cost10 = costForN(statName, level, 10)
+		local canOne = not maxed and (data.Credits or 0) >= cost1
+		local canTen = not maxed and cost10 > 0 and (data.Credits or 0) >= cost10
+
+		card.Buy1.SetText(maxed and "MAXED" or ("BUY 1  -  " .. Theme.Format(cost1)))
+		card.Buy10.SetText(maxed and "MAXED" or ("BUY 10  -  " .. Theme.Format(cost10)))
+		card.Buy1.SetEnabled(canOne)
+		card.Buy10.SetEnabled(canTen)
+	end
+end
+
+function ShopController.Init(screenGui)
+	panel = UI.Panel({
+		Name = "Shop",
+		Title = "UPGRADE SHOP",
+		Subtitle = "Spend Credits. Raise your Mog Score. Climb the ranks.",
+		Accent = Theme.Colors.Gold,
+		Width = 560,
+		Height = 620,
+		Parent = screenGui,
+		OnOpen = function()
+			refresh(ClientState.Get())
+		end,
+	})
+
+	balanceLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 22),
+		Font = Theme.Font,
+		TextSize = 15,
+		Text = "Balance: 0 Credits",
+		Parent = panel.Content,
+	})
+
+	local scroll = UI.Create("ScrollingFrame", {
+		Name = "List",
+		Position = UDim2.fromOffset(0, 30),
+		Size = UDim2.new(1, 0, 1, -30),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 5,
+		ScrollBarImageColor3 = Theme.Colors.Gold,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ZIndex = 12,
+		Parent = panel.Content,
+	})
+	UI.List(scroll, 10)
+
+	for i, statName in ipairs(Constants.STAT_ORDER) do
+		buildCard(scroll, statName, i)
+	end
+
+	ClientState.Changed:Connect(refresh)
+	refresh(ClientState.Get())
+end
+
+-- Open, optionally spotlighting a stat.
+function ShopController.Open(statName)
+	if not panel then
+		return
+	end
+	panel.Open()
+	local card = statName and cards[statName]
+	if card and card.Stroke then
+		card.Stroke.Color = card.Color
+		card.Stroke.Thickness = 3
+		TweenService:Create(card.Stroke, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Color = Theme.Colors.Stroke,
+			Thickness = 1.5,
+		}):Play()
+	end
+end
+
+function ShopController.Panel()
+	return panel
+end
+
+return ShopController
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="28">
+          <Properties>
+            <string name="Name">Theme</string>
+            <string name="Source"><![CDATA[--[[
+	Theme.lua
+	Colors, fonts, tween presets and number formatting shared by all UI.
+]]
+
+local Theme = {}
+
+Theme.Colors = {
+	Background = Color3.fromRGB(14, 14, 22),
+	Panel = Color3.fromRGB(22, 22, 33),
+	PanelLight = Color3.fromRGB(32, 32, 46),
+	Row = Color3.fromRGB(27, 27, 40),
+	Stroke = Color3.fromRGB(64, 64, 92),
+	Text = Color3.fromRGB(242, 242, 252),
+	TextDim = Color3.fromRGB(150, 150, 178),
+	Accent = Color3.fromRGB(175, 95, 255),
+	Accent2 = Color3.fromRGB(255, 70, 190),
+	Cyan = Color3.fromRGB(80, 220, 255),
+	Gold = Color3.fromRGB(255, 200, 60),
+	Green = Color3.fromRGB(90, 255, 150),
+	Red = Color3.fromRGB(255, 85, 95),
+	Orange = Color3.fromRGB(255, 120, 90),
+	Disabled = Color3.fromRGB(70, 70, 88),
+}
+
+Theme.StatColors = {
+	Jawline = Theme.Colors.Orange,
+	Hair = Theme.Colors.Gold,
+	Physique = Theme.Colors.Cyan,
+	Aura = Theme.Colors.Accent,
+	Fit = Theme.Colors.Accent2,
+}
+
+Theme.StatBlurbs = {
+	Jawline = "Sharpen the angles. Mog from any camera.",
+	Hair = "Volume, flow, and zero bad hair days.",
+	Physique = "Built, not born. Gym payout stays the same, score does not.",
+	Aura = "The thing people cannot explain but definitely notice.",
+	Fit = "Dress like the main character.",
+}
+
+Theme.Font = Enum.Font.GothamBold
+Theme.FontBlack = Enum.Font.GothamBlack
+Theme.FontMedium = Enum.Font.GothamMedium
+
+Theme.Corner = 12
+Theme.SmallCorner = 8
+
+Theme.Tween = {
+	Fast = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+	Normal = TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+	Pop = TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	Slow = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+}
+
+Theme.Sounds = {
+	Click = "rbxasset://sounds/electronicpingshort.wav",
+}
+
+function Theme.RankColor(rank)
+	return Color3.fromRGB(rank.Color[1], rank.Color[2], rank.Color[3])
+end
+
+local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi" }
+
+function Theme.Format(n)
+	n = tonumber(n) or 0
+	if n < 1000 then
+		return tostring(math.floor(n))
+	end
+	local idx = 1
+	while n >= 1000 and idx < #SUFFIXES do
+		n /= 1000
+		idx += 1
+	end
+	local text
+	if n >= 100 then
+		text = ("%d"):format(math.floor(n))
+	else
+		text = ("%.1f"):format(n)
+		if text:sub(-2) == ".0" then
+			text = text:sub(1, -3)
+		end
+	end
+	return text .. SUFFIXES[idx]
+end
+
+function Theme.FormatTime(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	if seconds < 60 then
+		return seconds .. "s"
+	end
+	local m = math.floor(seconds / 60)
+	local s = seconds % 60
+	return ("%dm %02ds"):format(m, s)
+end
+
+return Theme
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="29">
+          <Properties>
+            <string name="Name">UIBuilder</string>
+            <string name="Source"><![CDATA[--[[
+	UIBuilder.lua
+	Tiny declarative helpers so every controller builds UI the same way:
+	rounded panels, glowing strokes, animated buttons, progress bars, and
+	open/close animations for panels.
+]]
+
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+
+local Theme = require(script.Parent:WaitForChild("Theme"))
+
+local UI = {}
+
+local clickSound = nil
+
+local function getClickSound()
+	if clickSound then
+		return clickSound
+	end
+	clickSound = Instance.new("Sound")
+	clickSound.Name = "UIClick"
+	clickSound.SoundId = Theme.Sounds.Click
+	clickSound.Volume = 0.35
+	clickSound.Parent = SoundService
+	return clickSound
+end
+
+function UI.Click()
+	local s = getClickSound()
+	if s then
+		s:Play()
+	end
+end
+
+function UI.Create(className, props, children)
+	local inst = Instance.new(className)
+	local parent = nil
+	for key, value in pairs(props or {}) do
+		if key == "Parent" then
+			parent = value
+		else
+			inst[key] = value
+		end
+	end
+	for _, child in ipairs(children or {}) do
+		child.Parent = inst
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+
+function UI.Corner(parent, radius)
+	return UI.Create("UICorner", { CornerRadius = UDim.new(0, radius or Theme.Corner), Parent = parent })
+end
+
+function UI.Stroke(parent, color, thickness, transparency)
+	return UI.Create("UIStroke", {
+		Color = color or Theme.Colors.Stroke,
+		Thickness = thickness or 1.5,
+		Transparency = transparency or 0,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = parent,
+	})
+end
+
+function UI.Gradient(parent, c1, c2, rotation)
+	return UI.Create("UIGradient", {
+		Color = ColorSequence.new(c1, c2),
+		Rotation = rotation or 90,
+		Parent = parent,
+	})
+end
+
+function UI.Padding(parent, px, py)
+	py = py or px
+	return UI.Create("UIPadding", {
+		PaddingLeft = UDim.new(0, px),
+		PaddingRight = UDim.new(0, px),
+		PaddingTop = UDim.new(0, py),
+		PaddingBottom = UDim.new(0, py),
+		Parent = parent,
+	})
+end
+
+function UI.List(parent, padding, direction, hAlign, vAlign)
+	return UI.Create("UIListLayout", {
+		Padding = UDim.new(0, padding or 8),
+		FillDirection = direction or Enum.FillDirection.Vertical,
+		HorizontalAlignment = hAlign or Enum.HorizontalAlignment.Left,
+		VerticalAlignment = vAlign or Enum.VerticalAlignment.Top,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = parent,
+	})
+end
+
+function UI.Text(props)
+	local defaults = {
+		BackgroundTransparency = 1,
+		Font = Theme.Font,
+		TextColor3 = Theme.Colors.Text,
+		TextSize = 16,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		RichText = true,
+		Text = "",
+	}
+	for k, v in pairs(props or {}) do
+		defaults[k] = v
+	end
+	return UI.Create("TextLabel", defaults)
+end
+
+-- Frame with rounded corners, stroke and background.
+function UI.Box(props)
+	local defaults = {
+		BackgroundColor3 = Theme.Colors.Panel,
+		BorderSizePixel = 0,
+	}
+	for k, v in pairs(props or {}) do
+		if k ~= "Corner" and k ~= "StrokeColor" and k ~= "NoStroke" then
+			defaults[k] = v
+		end
+	end
+	local frame = UI.Create("Frame", defaults)
+	UI.Corner(frame, props and props.Corner or Theme.Corner)
+	if not (props and props.NoStroke) then
+		UI.Stroke(frame, props and props.StrokeColor or Theme.Colors.Stroke, 1.5, 0.2)
+	end
+	return frame
+end
+
+-- Animated button. props.OnClick(button) fires on activation.
+function UI.Button(props)
+	local color = props.Color or Theme.Colors.Accent
+	local button = UI.Create("TextButton", {
+		Name = props.Name or "Button",
+		Size = props.Size or UDim2.fromOffset(140, 44),
+		Position = props.Position,
+		AnchorPoint = props.AnchorPoint or Vector2.new(0, 0),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Font = props.Font or Theme.FontBlack,
+		Text = props.Text or "",
+		TextColor3 = props.TextColor or Theme.Colors.Text,
+		TextSize = props.TextSize or 18,
+		TextScaled = props.TextScaled or false,
+		LayoutOrder = props.LayoutOrder or 0,
+		Parent = props.Parent,
+	})
+	UI.Corner(button, props.Corner or Theme.Corner)
+	local stroke = UI.Stroke(button, Color3.new(1, 1, 1), 1.2, 0.85)
+	UI.Gradient(button, Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 205), 90)
+
+	local baseSize = button.Size
+	local enabled = true
+
+	local function hover(isIn)
+		if not enabled then
+			return
+		end
+		TweenService:Create(button, Theme.Tween.Fast, {
+			Size = isIn and (baseSize + UDim2.fromOffset(4, 2)) or baseSize,
+		}):Play()
+		TweenService:Create(stroke, Theme.Tween.Fast, { Transparency = isIn and 0.45 or 0.85 }):Play()
+	end
+
+	button.MouseEnter:Connect(function()
+		hover(true)
+	end)
+	button.MouseLeave:Connect(function()
+		hover(false)
+	end)
+	button.MouseButton1Down:Connect(function()
+		if enabled then
+			TweenService:Create(button, Theme.Tween.Fast, { Size = baseSize - UDim2.fromOffset(4, 2) }):Play()
+		end
+	end)
+	button.MouseButton1Up:Connect(function()
+		hover(true)
+	end)
+	button.Activated:Connect(function()
+		if not enabled then
+			return
+		end
+		UI.Click()
+		if props.OnClick then
+			props.OnClick(button)
+		end
+	end)
+
+	local api = {
+		Instance = button,
+	}
+	function api.SetEnabled(isEnabled)
+		enabled = isEnabled
+		TweenService:Create(button, Theme.Tween.Fast, {
+			BackgroundColor3 = isEnabled and color or Theme.Colors.Disabled,
+			TextColor3 = isEnabled and (props.TextColor or Theme.Colors.Text) or Theme.Colors.TextDim,
+		}):Play()
+	end
+	function api.SetText(text)
+		button.Text = text
+	end
+	function api.SetColor(newColor)
+		color = newColor
+		if enabled then
+			TweenService:Create(button, Theme.Tween.Fast, { BackgroundColor3 = newColor }):Play()
+		end
+	end
+	function api.SetSize(size)
+		baseSize = size
+		button.Size = size
+	end
+	return api
+end
+
+-- Horizontal progress bar. Returns api with Set(alpha, labelText).
+function UI.ProgressBar(props)
+	local frame = UI.Create("Frame", {
+		Name = props.Name or "Progress",
+		Size = props.Size or UDim2.new(1, 0, 0, 18),
+		Position = props.Position,
+		BackgroundColor3 = Theme.Colors.Background,
+		BorderSizePixel = 0,
+		LayoutOrder = props.LayoutOrder or 0,
+		Parent = props.Parent,
+	})
+	UI.Corner(frame, 9)
+	UI.Stroke(frame, Theme.Colors.Stroke, 1, 0.4)
+	local fill = UI.Create("Frame", {
+		Name = "Fill",
+		Size = UDim2.new(0, 0, 1, 0),
+		BackgroundColor3 = props.Color or Theme.Colors.Accent,
+		BorderSizePixel = 0,
+		Parent = frame,
+	})
+	UI.Corner(fill, 9)
+	UI.Gradient(fill, Color3.new(1, 1, 1), Color3.fromRGB(170, 170, 190), 0)
+	local label = UI.Text({
+		Name = "Label",
+		Size = UDim2.new(1, 0, 1, 0),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Font = Theme.Font,
+		TextSize = 12,
+		TextStrokeTransparency = 0.5,
+		Parent = frame,
+	})
+	local api = { Instance = frame }
+	function api.Set(alpha, text)
+		alpha = math.clamp(alpha or 0, 0, 1)
+		TweenService:Create(fill, Theme.Tween.Normal, { Size = UDim2.new(alpha, 0, 1, 0) }):Play()
+		if text then
+			label.Text = text
+		end
+	end
+	function api.SetColor(color)
+		fill.BackgroundColor3 = color
+	end
+	return api
+end
+
+-- Centered modal panel with title + close button. Hidden by default.
+-- Returns api: Frame, Content, Open(), Close(), Toggle(), IsOpen()
+function UI.Panel(props)
+	local width = props.Width or 520
+	local height = props.Height or 420
+
+	local dim = UI.Create("TextButton", {
+		Name = (props.Name or "Panel") .. "Dim",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Text = "",
+		AutoButtonColor = false,
+		Visible = false,
+		ZIndex = 10,
+		Parent = props.Parent,
+	})
+
+	local frame = UI.Box({
+		Name = props.Name or "Panel",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(width, height),
+		BackgroundColor3 = Theme.Colors.Panel,
+		StrokeColor = props.Accent or Theme.Colors.Accent,
+		ZIndex = 11,
+		Parent = dim,
+	})
+	local scale = UI.Create("UIScale", { Scale = 0.85, Parent = frame })
+
+	-- Header
+	local header = UI.Create("Frame", {
+		Name = "Header",
+		Size = UDim2.new(1, 0, 0, 58),
+		BackgroundColor3 = Theme.Colors.PanelLight,
+		BorderSizePixel = 0,
+		ZIndex = 12,
+		Parent = frame,
+	})
+	UI.Corner(header, Theme.Corner)
+	-- Square off the bottom corners of the header.
+	UI.Create("Frame", {
+		Size = UDim2.new(1, 0, 0, Theme.Corner),
+		Position = UDim2.new(0, 0, 1, -Theme.Corner),
+		BackgroundColor3 = Theme.Colors.PanelLight,
+		BorderSizePixel = 0,
+		ZIndex = 12,
+		Parent = header,
+	})
+	UI.Create("Frame", {
+		Name = "AccentBar",
+		Size = UDim2.new(1, 0, 0, 3),
+		Position = UDim2.new(0, 0, 1, -3),
+		BackgroundColor3 = props.Accent or Theme.Colors.Accent,
+		BorderSizePixel = 0,
+		ZIndex = 13,
+		Parent = header,
+	})
+	UI.Text({
+		Name = "Title",
+		Size = UDim2.new(1, -120, 1, 0),
+		Position = UDim2.fromOffset(20, 0),
+		Font = Theme.FontBlack,
+		TextSize = 24,
+		Text = props.Title or "",
+		TextColor3 = props.Accent or Theme.Colors.Accent,
+		ZIndex = 13,
+		Parent = header,
+	})
+	if props.Subtitle then
+		UI.Text({
+			Name = "Subtitle",
+			Size = UDim2.new(1, -120, 0, 16),
+			Position = UDim2.new(0, 20, 1, -20),
+			Font = Theme.FontMedium,
+			TextSize = 12,
+			Text = props.Subtitle,
+			TextColor3 = Theme.Colors.TextDim,
+			ZIndex = 13,
+			Parent = header,
+		})
+	end
+
+	local content = UI.Create("Frame", {
+		Name = "Content",
+		Size = UDim2.new(1, -32, 1, -58 - 32),
+		Position = UDim2.fromOffset(16, 58 + 16),
+		BackgroundTransparency = 1,
+		ZIndex = 12,
+		Parent = frame,
+	})
+
+	local api = {
+		Frame = frame,
+		Content = content,
+		Dim = dim,
+	}
+	local isOpen = false
+
+	function api.IsOpen()
+		return isOpen
+	end
+
+	function api.Open()
+		if isOpen then
+			return
+		end
+		isOpen = true
+		dim.Visible = true
+		dim.BackgroundTransparency = 1
+		scale.Scale = 0.85
+		TweenService:Create(dim, Theme.Tween.Normal, { BackgroundTransparency = 0.45 }):Play()
+		TweenService:Create(scale, Theme.Tween.Pop, { Scale = 1 }):Play()
+		if props.OnOpen then
+			props.OnOpen()
+		end
+	end
+
+	function api.Close()
+		if not isOpen then
+			return
+		end
+		isOpen = false
+		TweenService:Create(dim, Theme.Tween.Fast, { BackgroundTransparency = 1 }):Play()
+		local t = TweenService:Create(scale, Theme.Tween.Fast, { Scale = 0.9 })
+		t:Play()
+		t.Completed:Connect(function()
+			if not isOpen then
+				dim.Visible = false
+			end
+		end)
+		if props.OnClose then
+			props.OnClose()
+		end
+	end
+
+	function api.Toggle()
+		if isOpen then
+			api.Close()
+		else
+			api.Open()
+		end
+	end
+
+	UI.Button({
+		Name = "Close",
+		Text = "X",
+		Size = UDim2.fromOffset(40, 40),
+		Position = UDim2.new(1, -50, 0, 9),
+		Color = Theme.Colors.Red,
+		TextSize = 18,
+		Corner = 10,
+		Parent = header,
+		OnClick = api.Close,
+	}).Instance.ZIndex =
+		14
+
+	dim.Activated:Connect(function()
+		api.Close()
+	end)
+	-- Clicks inside the panel shouldn't close it.
+	frame.Active = true
+
+	return api
+end
+
+return UI
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+      <Item class="LocalScript" referent="30">
+        <Properties>
+          <string name="Name">Main</string>
+          <string name="Source"><![CDATA[--[[
+	Client bootstrap. Builds the ScreenGui, wires state -> UI, and listens for
+	server requests to open panels (from the hub's proximity prompts).
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared:WaitForChild("Remotes"))
+
+local Client = script.Parent:WaitForChild("Client")
+local ClientState = require(Client:WaitForChild("ClientState"))
+local NotificationController = require(Client:WaitForChild("NotificationController"))
+local ShopController = require(Client:WaitForChild("ShopController"))
+local LeaderboardController = require(Client:WaitForChild("LeaderboardController"))
+local RebirthController = require(Client:WaitForChild("RebirthController"))
+local HudController = require(Client:WaitForChild("HudController"))
+
+-- No tools in this game, so hide the backpack.
+pcall(function()
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+end)
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MogHud"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.DisplayOrder = 5
+screenGui.IgnoreGuiInset = false
+screenGui.Parent = playerGui
+
+-- Scale the whole HUD down on small screens.
+local uiScale = Instance.new("UIScale")
+uiScale.Parent = screenGui
+local function updateScale()
+	local camera = Workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local vp = camera.ViewportSize
+	local s = math.min(vp.X / 1500, vp.Y / 850)
+	uiScale.Scale = math.clamp(s, 0.6, 1)
+end
+updateScale()
+if Workspace.CurrentCamera then
+	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+end
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	updateScale()
+	if Workspace.CurrentCamera then
+		Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+	end
+end)
+
+ClientState.Init()
+NotificationController.Init(screenGui)
+ShopController.Init(screenGui)
+LeaderboardController.Init(screenGui)
+RebirthController.Init(screenGui)
+
+local panels = {
+	Shop = ShopController.Panel(),
+	Leaderboard = LeaderboardController.Panel(),
+	Rebirth = RebirthController.Panel(),
+}
+HudController.Init(screenGui, panels)
+
+local function closeOthers(keep)
+	for name, p in pairs(panels) do
+		if name ~= keep and p.IsOpen() then
+			p.Close()
+		end
+	end
+end
+
+Remotes.Get("OpenPanel").OnClientEvent:Connect(function(panelName, arg)
+	if panelName == "Shop" then
+		closeOthers("Shop")
+		ShopController.Open(arg)
+	elseif panelName == "Rebirth" then
+		closeOthers("Rebirth")
+		panels.Rebirth.Open()
+	elseif panelName == "Leaderboard" then
+		closeOthers("Leaderboard")
+		panels.Leaderboard.Open()
+	end
+end)
+
+-- Welcome message once data arrives the first time.
+local welcomed = false
+ClientState.Changed:Connect(function(data)
+	if welcomed then
+		return
+	end
+	welcomed = true
+	local rank = ClientState.Rank()
+	if (data.LifetimeCredits or 0) <= (data.Credits or 0) and (data.Rebirths or 0) == 0 and (data.MogScore or 0) == 0 then
+		NotificationController.Show(
+			"success",
+			"Welcome to the city",
+			("You start with %d Credits. Hit the shops."):format(data.Credits or 0)
+		)
+	else
+		NotificationController.Show(
+			"info",
+			"Welcome back, " .. rank.Name,
+			("%s Credits ready to spend."):format(tostring(data.Credits or 0))
+		)
+	end
+end)
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+</roblox>

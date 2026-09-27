@@ -1,0 +1,35 @@
+{
+  "name": "MoggingSimulator",
+  "tree": {
+    "$className": "DataModel",
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Technology": "Future"
+      }
+    },
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/ReplicatedStorage/Shared"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/ServerScriptService/Server"
+      },
+      "Main": {
+        "$path": "src/ServerScriptService/Main.server.lua"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Client"
+        },
+        "Main": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Main.client.lua"
+        }
+      }
+    }
+  }
+}

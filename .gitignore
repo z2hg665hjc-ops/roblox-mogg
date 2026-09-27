@@ -1,0 +1,9 @@
+# Rojo / Studio
+*.rbxl
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+
+# OS
+.DS_Store
+Thumbs.db
