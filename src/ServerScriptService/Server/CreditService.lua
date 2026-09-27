@@ -17,22 +17,48 @@ local CreditService = {}
 
 local MAX_CREDITS = 1e15
 
+-- Other services (game passes, events) can multiply earnings: fn(player, profile) -> number
+CreditService.MultiplierProviders = {}
+-- Optional hook for the daily bonus: fn(player) -> number
+CreditService.DailyMultiplierProvider = nil
+
 local function notify(player, kind, title, message)
 	Remotes.Get("Notify"):FireClient(player, kind, title, message)
 end
 
-function CreditService.GetMultiplier(profile)
-	return Constants.GetRebirthMultiplier(profile.Rebirths or 0)
+function CreditService.GetMultiplier(player, profile)
+	local mult = Constants.GetRebirthMultiplier(profile.Rebirths or 0)
+	for _, provider in ipairs(CreditService.MultiplierProviders) do
+		local ok, value = pcall(provider, player, profile)
+		if ok and type(value) == "number" and value > 0 then
+			mult *= value
+		end
+	end
+	return mult
 end
 
--- Adds raw credits after applying the player's rebirth multiplier.
+-- Adds exactly `amount` credits, no multipliers. Used for Robux purchases and
+-- battle pots, where the number must be exact.
+function CreditService.AddRaw(player, amount)
+	local profile = DataService.Get(player)
+	if not profile or type(amount) ~= "number" or amount <= 0 then
+		return 0
+	end
+	amount = math.floor(amount)
+	profile.Credits = math.clamp(profile.Credits + amount, 0, MAX_CREDITS)
+	profile.LifetimeCredits = math.clamp((profile.LifetimeCredits or 0) + amount, 0, MAX_CREDITS)
+	DataService.MarkDirty(player)
+	return amount
+end
+
+-- Adds credits after applying rebirth + pass multipliers.
 -- Returns the actual amount added.
 function CreditService.Add(player, amount, reason)
 	local profile = DataService.Get(player)
 	if not profile or type(amount) ~= "number" or amount <= 0 then
 		return 0
 	end
-	local final = math.floor(amount * CreditService.GetMultiplier(profile))
+	local final = math.floor(amount * CreditService.GetMultiplier(player, profile))
 	if final <= 0 then
 		final = 1
 	end
@@ -40,6 +66,36 @@ function CreditService.Add(player, amount, reason)
 	profile.LifetimeCredits = math.clamp((profile.LifetimeCredits or 0) + final, 0, MAX_CREDITS)
 	DataService.MarkDirty(player)
 	return final, reason
+end
+
+-- Daily login bonus. Streak grows if you came back yesterday, resets otherwise.
+local function grantDaily(player, profile)
+	local today = math.floor(os.time() / 86400)
+	if (profile.LastDailyDay or 0) == today then
+		return
+	end
+	if (profile.LastDailyDay or 0) == today - 1 then
+		profile.DailyStreak = math.min((profile.DailyStreak or 0) + 1, Constants.DAILY_MAX_STREAK)
+	else
+		profile.DailyStreak = 1
+	end
+	profile.LastDailyDay = today
+
+	local mult = 1
+	if CreditService.DailyMultiplierProvider then
+		local ok, value = pcall(CreditService.DailyMultiplierProvider, player)
+		if ok and type(value) == "number" then
+			mult = value
+		end
+	end
+	local amount = Constants.DAILY_BONUS * profile.DailyStreak * mult
+	CreditService.AddRaw(player, amount)
+	notify(
+		player,
+		"success",
+		("Daily Bonus  |  Day %d"):format(profile.DailyStreak),
+		("+%d Credits for showing up. Come back tomorrow for more."):format(amount)
+	)
 end
 
 -- Spends credits only if the player can afford it. Returns true on success.
@@ -82,7 +138,7 @@ function CreditService.CreditCheck(player)
 		local level = tonumber(profile.Stats[statName]) or 0
 		verifiedScore += level * def.ScorePerLevel
 	end
-	verifiedScore = math.floor(verifiedScore * CreditService.GetMultiplier(profile))
+	verifiedScore = math.floor(verifiedScore * Constants.GetRebirthMultiplier(profile.Rebirths or 0))
 	profile.MogScore = verifiedScore
 
 	local payout = Constants.CREDIT_CHECK_BASE_PAYOUT + math.floor(verifiedScore * Constants.CREDIT_CHECK_SCORE_FACTOR)
@@ -130,6 +186,15 @@ function CreditService.RateSelf(player)
 end
 
 function CreditService.Init()
+	DataService.ProfileLoaded:Connect(function(player, profile)
+		-- Small delay so the welcome toast lands first.
+		task.delay(2, function()
+			if player.Parent and DataService.Get(player) == profile then
+				grantDaily(player, profile)
+			end
+		end)
+	end)
+
 	Remotes.Get("CreditCheck").OnServerEvent:Connect(function(player)
 		local AntiExploit = require(script.Parent:WaitForChild("AntiExploit"))
 		if not AntiExploit.Allow(player, "CreditCheck") then

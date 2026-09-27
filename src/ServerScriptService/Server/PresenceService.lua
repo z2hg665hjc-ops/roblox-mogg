@@ -12,6 +12,9 @@ local Constants = require(Shared:WaitForChild("Constants"))
 
 local DataService = require(script.Parent:WaitForChild("DataService"))
 local StatService = require(script.Parent:WaitForChild("StatService"))
+local MonetizationService = require(script.Parent:WaitForChild("MonetizationService"))
+
+local GOLD = Color3.fromRGB(235, 195, 95)
 
 local PresenceService = {}
 
@@ -85,17 +88,17 @@ local function ensureAura(character)
 	emitter.Name = "Aura"
 	emitter.Rate = 0
 	emitter.Lifetime = NumberRange.new(0.8, 1.4)
-	emitter.Speed = NumberRange.new(1, 2)
+	emitter.Speed = NumberRange.new(0.6, 1.2)
 	emitter.SpreadAngle = Vector2.new(180, 180)
 	emitter.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(0, 0.25),
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	emitter.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(0, 0.5),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	emitter.LightEmission = 0.8
+	emitter.LightEmission = 0.3
 	emitter.LightInfluence = 0
 	emitter.Acceleration = Vector3.new(0, 3, 0)
 	emitter.Parent = root
@@ -111,27 +114,40 @@ local function refresh(player)
 	local score = profile.MogScore or 0
 	local rank = Constants.GetRank(score)
 	local color = Color3.fromRGB(rank.Color[1], rank.Color[2], rank.Color[3])
+	local isVip = MonetizationService.Owns(player, "VIP")
 
 	local gui = ensureTag(character)
 	if gui then
 		local rankLabel = gui:FindFirstChild("Rank")
 		local scoreLabel = gui:FindFirstChild("Score")
 		if rankLabel then
-			rankLabel.Text = rank.Name
-			rankLabel.TextColor3 = color
+			rankLabel.Text = isVip and ("VIP  " .. rank.Name) or rank.Name
+			rankLabel.TextColor3 = isVip and GOLD or color
 		end
 		if scoreLabel then
 			local rebirths = profile.Rebirths or 0
-			scoreLabel.Text = rebirths > 0 and ("%d Mog  |  R%d"):format(score, rebirths) or ("%d Mog"):format(score)
+			local wins = profile.Wins or 0
+			local text = ("%d Mog"):format(score)
+			if wins > 0 then
+				text ..= ("  |  %dW"):format(wins)
+			end
+			if rebirths > 0 then
+				text ..= ("  |  R%d"):format(rebirths)
+			end
+			scoreLabel.Text = text
 		end
 	end
 
 	local emitter = ensureAura(character)
 	if emitter then
 		local idx = rankIndex(rank)
-		-- NPC/Mid get nothing; each rank above that turns the aura up.
-		emitter.Rate = math.max(0, (idx - 2) * 6)
-		emitter.Color = ColorSequence.new(color)
+		-- Subtle: nothing until Chad, then a slow drift of particles. VIP is gold.
+		local rate = math.max(0, (idx - 4) * 2.5)
+		if isVip then
+			rate = math.max(rate, 5)
+		end
+		emitter.Rate = rate
+		emitter.Color = ColorSequence.new(isVip and GOLD or color)
 	end
 end
 
@@ -158,6 +174,15 @@ function PresenceService.Init()
 	StatService.ScoreChanged:Connect(function(player)
 		refresh(player)
 	end)
+
+	MonetizationService.PassesChanged:Connect(function(player)
+		refresh(player)
+	end)
+end
+
+-- Battles change W/L without touching the score.
+function PresenceService.Refresh(player)
+	refresh(player)
 end
 
 return PresenceService

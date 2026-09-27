@@ -127,7 +127,7 @@ function UI.Box(props)
 	local frame = UI.Create("Frame", defaults)
 	UI.Corner(frame, props and props.Corner or Theme.Corner)
 	if not (props and props.NoStroke) then
-		UI.Stroke(frame, props and props.StrokeColor or Theme.Colors.Stroke, 1.5, 0.2)
+		UI.Stroke(frame, props and props.StrokeColor or Theme.Colors.Stroke, 1.2, 0.5)
 	end
 	return frame
 end
@@ -153,7 +153,7 @@ function UI.Button(props)
 	})
 	UI.Corner(button, props.Corner or Theme.Corner)
 	local stroke = UI.Stroke(button, Color3.new(1, 1, 1), 1.2, 0.85)
-	UI.Gradient(button, Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 205), 90)
+	UI.Gradient(button, Color3.new(1, 1, 1), Color3.fromRGB(215, 215, 222), 90)
 
 	local baseSize = button.Size
 	local enabled = true

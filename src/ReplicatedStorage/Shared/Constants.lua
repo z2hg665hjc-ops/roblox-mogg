@@ -106,6 +106,55 @@ Constants.RATING_BOOTH_BASE_PAYOUT = 10
 Constants.RATING_BOOTH_SCORE_FACTOR = 0.05
 
 -- ---------------------------------------------------------------------------
+-- Daily login bonus: 100 Credits, multiplied by your streak (max 5 days).
+-- ---------------------------------------------------------------------------
+Constants.DAILY_BONUS = 100
+Constants.DAILY_MAX_STREAK = 5
+
+-- ---------------------------------------------------------------------------
+-- Mog Off (PvP). Both players escrow the wager; winner takes the pot plus a
+-- bonus. Power = (MogScore + 10) * flex bonus * small luck roll.
+-- ---------------------------------------------------------------------------
+Constants.BATTLE = {
+	Wager = 50,
+	WinBonus = 25,
+	CountdownDuration = 3,
+	FlexDuration = 6,
+	ResultDuration = 5,
+	AcceptTimeout = 20,
+	MaxFlex = 80, -- clicks that count
+	FlexPowerPerClick = 0.01, -- +1% power per click, so up to +80%
+	LuckRange = 0.08, -- +-8%
+	Cooldown = 6, -- seconds between battles per player
+}
+
+-- ---------------------------------------------------------------------------
+-- Robux. Create these in the Creator Dashboard (Monetization) and paste the
+-- IDs here. Id = 0 means "not linked yet" and the button explains that.
+-- ---------------------------------------------------------------------------
+Constants.GAMEPASSES = {
+	{
+		Key = "DoubleCredits",
+		Id = 0,
+		Name = "2x Credits",
+		Description = "Double every Credit you earn from the gym, mirror, credit checks and battles. Forever.",
+	},
+	{
+		Key = "VIP",
+		Id = 0,
+		Name = "VIP",
+		Description = "Gold name tag, exclusive gold aura, and a doubled daily bonus.",
+	},
+}
+
+Constants.PRODUCTS = {
+	{ Key = "Credits500", Id = 0, Name = "Pocket Change", Credits = 500 },
+	{ Key = "Credits2500", Id = 0, Name = "Stack", Credits = 2500 },
+	{ Key = "Credits10000", Id = 0, Name = "Bag", Credits = 10000 },
+	{ Key = "Credits50000", Id = 0, Name = "Vault", Credits = 50000 },
+}
+
+-- ---------------------------------------------------------------------------
 -- Anti-exploit: minimum seconds between remote fires per player, per remote.
 -- ---------------------------------------------------------------------------
 Constants.REMOTE_COOLDOWNS = {
@@ -115,6 +164,9 @@ Constants.REMOTE_COOLDOWNS = {
 	GymRep = 1,
 	RateSelf = 1,
 	RequestData = 1,
+	BattleRequest = 2,
+	BattleRespond = 0.5,
+	BattleFlex = 0.05,
 }
 
 function Constants.GetRank(mogScore)

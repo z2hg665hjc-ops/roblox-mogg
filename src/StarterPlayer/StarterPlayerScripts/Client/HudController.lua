@@ -22,7 +22,7 @@ local player = Players.LocalPlayer
 
 local creditsValue = nil -- NumberValue driving the count-up animation
 local scoreValue = nil
-local creditsLabel, scoreLabel, rankBadge, rankLabel, multLabel, nextRankLabel
+local creditsLabel, scoreLabel, rankBadge, rankLabel, multLabel, nextRankLabel, recordLabel
 local rankBar
 local cooldownPills = {}
 
@@ -35,7 +35,7 @@ local function buildStatCard(parent)
 	local card = UI.Box({
 		Name = "StatCard",
 		Position = UDim2.fromOffset(16, 16),
-		Size = UDim2.fromOffset(300, 176),
+		Size = UDim2.fromOffset(300, 196),
 		BackgroundColor3 = Theme.Colors.Panel,
 		StrokeColor = Theme.Colors.Accent,
 		Parent = parent,
@@ -134,13 +134,23 @@ local function buildStatCard(parent)
 		Parent = card,
 	})
 
+	recordLabel = UI.Text({
+		Size = UDim2.new(1, 0, 0, 14),
+		Position = UDim2.fromOffset(0, 146),
+		Font = Theme.FontMedium,
+		TextSize = 11,
+		Text = "MOG OFF RECORD  0W - 0L",
+		TextColor3 = Theme.Colors.TextDim,
+		Parent = card,
+	})
+
 	return card
 end
 
 local function buildCooldownPills(parent)
 	local holder = UI.Create("Frame", {
 		Name = "Cooldowns",
-		Position = UDim2.fromOffset(16, 204),
+		Position = UDim2.fromOffset(16, 224),
 		Size = UDim2.fromOffset(300, 32),
 		BackgroundTransparency = 1,
 		Parent = parent,
@@ -176,15 +186,18 @@ local function buildMenuButtons(parent, panels)
 		Name = "Menu",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -16, 0.5, 0),
-		Size = UDim2.fromOffset(150, 220),
+		Size = UDim2.fromOffset(150, 300),
 		BackgroundTransparency = 1,
 		Parent = parent,
 	})
 	UI.List(holder, 10, Enum.FillDirection.Vertical, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
 
+	local dark = Color3.fromRGB(20, 20, 26)
 	local defs = {
-		{ "SHOP", Theme.Colors.Gold, panels.Shop, Color3.fromRGB(30, 26, 12) },
-		{ "LEADERBOARD", Theme.Colors.Cyan, panels.Leaderboard, Color3.fromRGB(10, 26, 32) },
+		{ "SHOP", Theme.Colors.Gold, panels.Shop, dark },
+		{ "MOG OFF", Theme.Colors.Red, panels.Battle, Theme.Colors.Text },
+		{ "PREMIUM", Theme.Colors.Green, panels.Premium, dark },
+		{ "LEADERBOARD", Theme.Colors.Cyan, panels.Leaderboard, dark },
 		{ "REBIRTH", Theme.Colors.Accent, panels.Rebirth, Theme.Colors.Text },
 	}
 	for i, def in ipairs(defs) do
@@ -225,7 +238,7 @@ local function buildHint(parent)
 		Font = Theme.Font,
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Center,
-		Text = "Walk up to a <b>Shop stall</b>, the <b>Gym</b>, the <b>Mirror</b>, or the <b>Credit Check</b> kiosk and press <b>E</b>.",
+		Text = "Press <b>E</b> at a <b>Shop stall</b>, the <b>Gym</b>, the <b>Mirror</b>, the <b>Credit Check</b> kiosk, or at <b>another player</b> to Mog Off.",
 		Parent = hint,
 	})
 	task.delay(18, function()
@@ -257,8 +270,12 @@ local function refresh(data)
 	end
 
 	local mult = Constants.GetRebirthMultiplier(data.Rebirths or 0)
-	multLabel.Text = ("x%.2f bonus  |  R%d"):format(mult, data.Rebirths or 0)
-	multLabel.TextColor3 = (data.Rebirths or 0) > 0 and Theme.Colors.Accent or Theme.Colors.TextDim
+	if data.Passes and data.Passes.DoubleCredits then
+		mult *= 2
+	end
+	multLabel.Text = ("x%.2f credits  |  R%d"):format(mult, data.Rebirths or 0)
+	multLabel.TextColor3 = mult > 1 and Theme.Colors.Accent or Theme.Colors.TextDim
+	recordLabel.Text = ("MOG OFF RECORD  %dW - %dL"):format(data.Wins or 0, data.Losses or 0)
 
 	local nextRank = ClientState.NextRank()
 	if nextRank then
@@ -350,7 +367,7 @@ function HudController.Init(screenGui, panels)
 	-- Keep the character name visible in the HUD so people know whose stats these are.
 	UI.Text({
 		Name = "Who",
-		Position = UDim2.fromOffset(20, 194),
+		Position = UDim2.fromOffset(20, 214),
 		Size = UDim2.fromOffset(300, 12),
 		Font = Theme.FontMedium,
 		TextSize = 10,

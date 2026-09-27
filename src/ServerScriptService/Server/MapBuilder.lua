@@ -1,14 +1,15 @@
 --[[
 	MapBuilder.lua
-	Procedurally builds the hub world on server start. Everything lives under
-	Workspace.Hub so it's easy to inspect, and the build is idempotent.
+	Procedurally builds the hub on server start. Clean showroom look: white
+	marble, light concrete, charcoal trims, one mint accent used sparingly,
+	warm white lamps. The only glowing object is the rebirth orb.
 
 	Layout (top-down, +Z is "south"):
 	          [MOG STAGE]        [LEADERBOARD]
 	  [GYM]     ( plaza + fountain )     [UPGRADE SHOPS x5]
 	      [MIRROR]                  [CREDIT CHECK]
 	                 [REBIRTH ALTAR]
-	Surrounded by a neon night skyline.
+	Ringed by a quiet light-gray skyline.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -22,34 +23,34 @@ local Constants = require(Shared:WaitForChild("Constants"))
 local MapBuilder = {}
 
 local C = {
-	Ground = Color3.fromRGB(24, 24, 31),
-	Plaza = Color3.fromRGB(46, 46, 60),
-	PlazaLight = Color3.fromRGB(66, 66, 84),
-	Path = Color3.fromRGB(58, 58, 72),
-	Metal = Color3.fromRGB(34, 34, 44),
-	MetalLight = Color3.fromRGB(120, 124, 140),
-	Marble = Color3.fromRGB(205, 200, 222),
-	MarbleDark = Color3.fromRGB(70, 64, 92),
-	Pink = Color3.fromRGB(255, 70, 190),
-	Cyan = Color3.fromRGB(80, 220, 255),
-	Purple = Color3.fromRGB(175, 95, 255),
-	Gold = Color3.fromRGB(255, 200, 60),
-	Green = Color3.fromRGB(90, 255, 150),
-	Orange = Color3.fromRGB(255, 120, 90),
-	White = Color3.fromRGB(245, 245, 255),
-	Black = Color3.fromRGB(10, 10, 14),
+	Ground = Color3.fromRGB(190, 190, 196),
+	Plaza = Color3.fromRGB(232, 232, 236),
+	PlazaMid = Color3.fromRGB(205, 205, 212),
+	Path = Color3.fromRGB(172, 172, 180),
+	Stone = Color3.fromRGB(98, 98, 108),
+	Charcoal = Color3.fromRGB(46, 46, 54),
+	White = Color3.fromRGB(246, 246, 249),
+	Steel = Color3.fromRGB(150, 154, 166),
+	Wood = Color3.fromRGB(148, 108, 70),
+	Accent = Color3.fromRGB(86, 186, 172),
+	Gold = Color3.fromRGB(205, 170, 92),
+	Purple = Color3.fromRGB(150, 112, 220),
+	Green = Color3.fromRGB(88, 180, 122),
+	Glass = Color3.fromRGB(200, 220, 236),
+	Water = Color3.fromRGB(118, 178, 220),
+	Grass = Color3.fromRGB(98, 150, 86),
+	Screen = Color3.fromRGB(18, 20, 24),
 }
 
 local STAT_COLORS = {
-	Jawline = C.Orange,
-	Hair = C.Gold,
-	Physique = C.Cyan,
-	Aura = C.Purple,
-	Fit = C.Pink,
+	Jawline = Color3.fromRGB(226, 130, 104),
+	Hair = Color3.fromRGB(214, 176, 84),
+	Physique = Color3.fromRGB(104, 176, 220),
+	Aura = Color3.fromRGB(158, 122, 226),
+	Fit = Color3.fromRGB(226, 116, 156),
 }
 
-local NEON_CYCLE = { C.Pink, C.Cyan, C.Purple, C.Gold }
-
+local WARM_LIGHT = Color3.fromRGB(255, 238, 210)
 local ORIGIN = Vector3.new(0, 0, 0)
 
 -- ---------------------------------------------------------------------------
@@ -92,6 +93,14 @@ local function cylinder(height, diameter, position, props)
 	return part(props)
 end
 
+local function disc(thickness, diameter, position, color, material, parent, extra)
+	local props = { Color = color, Material = material or Enum.Material.SmoothPlastic, Parent = parent }
+	for k, v in pairs(extra or {}) do
+		props[k] = v
+	end
+	return cylinder(thickness, diameter, position, props)
+end
+
 local function ball(diameter, position, props)
 	props = props or {}
 	props.Shape = Enum.PartType.Ball
@@ -100,81 +109,59 @@ local function ball(diameter, position, props)
 	return part(props)
 end
 
-local function neon(props)
-	props.Material = Enum.Material.Neon
-	props.CastShadow = false
-	return part(props)
-end
-
 local function pointLight(parent, color, range, brightness)
 	local light = Instance.new("PointLight")
 	light.Color = color
 	light.Range = range or 20
-	light.Brightness = brightness or 1.5
+	light.Brightness = brightness or 0.8
 	light.Shadows = false
 	light.Parent = parent
 	return light
 end
 
-local function sparkles(parent, color, rate, speed)
-	local e = Instance.new("ParticleEmitter")
-	e.Color = ColorSequence.new(color)
-	e.Rate = rate or 12
-	e.Lifetime = NumberRange.new(1, 1.8)
-	e.Speed = NumberRange.new(speed or 2, (speed or 2) + 1.5)
-	e.SpreadAngle = Vector2.new(35, 35)
-	e.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.5),
-		NumberSequenceKeypoint.new(1, 0),
+-- Board with dark-on-light (or custom) text. Clean signage.
+local function board(size, cframe, parent, title, subtitle, titleColor, boardColor, ppStud)
+	local b = part({
+		Name = "Board",
+		Size = size,
+		CFrame = cframe,
+		Color = boardColor or C.White,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = parent,
 	})
-	e.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	e.LightEmission = 1
-	e.LightInfluence = 0
-	e.Acceleration = Vector3.new(0, 1.5, 0)
-	e.Parent = parent
-	return e
-end
-
--- SurfaceGui sign with a title and optional subtitle on a face.
-local function sign(target, face, title, color, subtitle, pixelsPerStud)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Sign"
-	gui.Face = face or Enum.NormalId.Front
+	gui.Face = Enum.NormalId.Front
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = pixelsPerStud or 40
-	gui.LightInfluence = 0
-	gui.Brightness = 2
-	gui.Parent = target
+	gui.PixelsPerStud = ppStud or 40
+	gui.LightInfluence = 0.6
+	gui.Brightness = 1
+	gui.Parent = b
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "Title"
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.Size = subtitle and UDim2.new(0.92, 0, 0.55, 0) or UDim2.new(0.92, 0, 0.8, 0)
-	titleLabel.Position = subtitle and UDim2.new(0.04, 0, 0.08, 0) or UDim2.new(0.04, 0, 0.1, 0)
+	titleLabel.Size = subtitle and UDim2.new(0.9, 0, 0.5, 0) or UDim2.new(0.9, 0, 0.7, 0)
+	titleLabel.Position = subtitle and UDim2.new(0.05, 0, 0.1, 0) or UDim2.new(0.05, 0, 0.15, 0)
 	titleLabel.Font = Enum.Font.GothamBlack
 	titleLabel.Text = title
 	titleLabel.TextScaled = true
-	titleLabel.TextColor3 = color
-	titleLabel.TextStrokeTransparency = 0.6
+	titleLabel.TextColor3 = titleColor or C.Charcoal
 	titleLabel.Parent = gui
 
 	if subtitle then
 		local subLabel = Instance.new("TextLabel")
 		subLabel.Name = "Subtitle"
 		subLabel.BackgroundTransparency = 1
-		subLabel.Size = UDim2.new(0.9, 0, 0.22, 0)
-		subLabel.Position = UDim2.new(0.05, 0, 0.66, 0)
+		subLabel.Size = UDim2.new(0.86, 0, 0.2, 0)
+		subLabel.Position = UDim2.new(0.07, 0, 0.66, 0)
 		subLabel.Font = Enum.Font.GothamMedium
 		subLabel.Text = subtitle
 		subLabel.TextScaled = true
-		subLabel.TextColor3 = Color3.fromRGB(215, 215, 230)
-		subLabel.TextTransparency = 0.1
+		subLabel.TextColor3 = C.Stone
 		subLabel.Parent = gui
 	end
-	return gui
+	return b
 end
 
 local function prompt(target, actionText, objectText, holdDuration, distance)
@@ -200,19 +187,25 @@ local function lookAtGround(pos, target)
 	return CFrame.lookAt(Vector3.new(pos.X, 0, pos.Z), Vector3.new(target.X, 0, target.Z))
 end
 
-local function bobAndSpin(inst, height, seconds)
-	local up = TweenService:Create(
+local function bob(inst, height, seconds)
+	TweenService:Create(
 		inst,
-		TweenInfo.new(seconds or 2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Position = inst.Position + Vector3.new(0, height or 1, 0) }
-	)
-	up:Play()
-	local spin = TweenService:Create(
-		inst,
-		TweenInfo.new((seconds or 2.5) * 3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
-		{ Orientation = inst.Orientation + Vector3.new(0, 359, 0) }
-	)
-	spin:Play()
+		TweenInfo.new(seconds or 3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Position = inst.Position + Vector3.new(0, height or 0.6, 0) }
+	):Play()
+end
+
+-- Thin flat trim line (replaces neon strips).
+local function trim(size, cframe, color, parent)
+	return part({
+		Name = "Trim",
+		Size = size,
+		CFrame = cframe,
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		Parent = parent,
+	})
 end
 
 -- ---------------------------------------------------------------------------
@@ -226,134 +219,127 @@ local function buildGround(root)
 		Size = Vector3.new(560, 4, 560),
 		Position = Vector3.new(0, -2, 0),
 		Color = C.Ground,
-		Material = Enum.Material.Slate,
+		Material = Enum.Material.Concrete,
 		Parent = g,
 	})
-	-- Invisible boundary so nobody falls into the void.
 	for _, def in ipairs({
 		{ Vector3.new(4, 120, 560), Vector3.new(280, 60, 0) },
 		{ Vector3.new(4, 120, 560), Vector3.new(-280, 60, 0) },
 		{ Vector3.new(560, 120, 4), Vector3.new(0, 60, 280) },
 		{ Vector3.new(560, 120, 4), Vector3.new(0, 60, -280) },
 	}) do
-		part({
-			Name = "Barrier",
-			Size = def[1],
-			Position = def[2],
-			Transparency = 1,
-			CastShadow = false,
-			Parent = g,
-		})
+		part({ Name = "Barrier", Size = def[1], Position = def[2], Transparency = 1, CastShadow = false, Parent = g })
 	end
 end
 
 local function buildPlaza(root)
 	local f = folder("Plaza", root)
-	neon({
-		Name = "OuterRim",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.5, 124, 124),
-		CFrame = CFrame.new(0, 0.25, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = C.Purple,
-		Transparency = 0.15,
-		Parent = f,
-	})
-	cylinder(0.5, 120, Vector3.new(0, 0.35, 0), { Name = "PlazaFloor", Color = C.Plaza, Material = Enum.Material.Marble, Parent = f })
-	neon({
-		Name = "InnerRim",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.3, 44, 44),
-		CFrame = CFrame.new(0, 0.62, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = C.Cyan,
-		Transparency = 0.25,
-		Parent = f,
-	})
-	cylinder(0.3, 40, Vector3.new(0, 0.7, 0), { Name = "InnerFloor", Color = C.PlazaLight, Material = Enum.Material.Marble, Parent = f })
+	disc(0.5, 124, Vector3.new(0, 0.25, 0), C.Stone, Enum.Material.SmoothPlastic, f, { Name = "OuterRim" })
+	disc(0.5, 120, Vector3.new(0, 0.35, 0), C.Plaza, Enum.Material.Marble, f, { Name = "PlazaFloor" })
+	disc(0.3, 44, Vector3.new(0, 0.62, 0), C.Stone, Enum.Material.SmoothPlastic, f, { Name = "InnerRim" })
+	disc(0.3, 40, Vector3.new(0, 0.7, 0), C.PlazaMid, Enum.Material.Granite, f, { Name = "InnerFloor" })
 
 	-- Fountain
 	local fountain = folder("Fountain", f)
-	cylinder(1.6, 18, Vector3.new(0, 1.65, 0), { Name = "Basin", Color = C.Marble, Material = Enum.Material.Marble, Parent = fountain })
-	local water = cylinder(0.6, 16, Vector3.new(0, 2.2, 0), {
+	disc(1.6, 18, Vector3.new(0, 1.65, 0), C.White, Enum.Material.Marble, fountain, { Name = "Basin" })
+	local water = disc(0.6, 16, Vector3.new(0, 2.2, 0), C.Water, Enum.Material.Glass, fountain, {
 		Name = "Water",
-		Color = Color3.fromRGB(90, 180, 255),
-		Material = Enum.Material.Glass,
-		Transparency = 0.35,
-		Reflectance = 0.3,
+		Transparency = 0.4,
+		Reflectance = 0.2,
 		CanCollide = false,
-		Parent = fountain,
 	})
 	local spray = Instance.new("ParticleEmitter")
-	spray.Color = ColorSequence.new(Color3.fromRGB(190, 230, 255))
-	spray.Rate = 40
-	spray.Lifetime = NumberRange.new(1.0, 1.4)
-	spray.Speed = NumberRange.new(9, 12)
-	spray.SpreadAngle = Vector2.new(12, 12)
-	spray.Size = NumberSequence.new(0.35)
-	spray.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+	spray.Color = ColorSequence.new(Color3.fromRGB(225, 240, 255))
+	spray.Rate = 22
+	spray.Lifetime = NumberRange.new(1.0, 1.3)
+	spray.Speed = NumberRange.new(8, 10)
+	spray.SpreadAngle = Vector2.new(10, 10)
+	spray.Size = NumberSequence.new(0.3)
+	spray.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) })
 	spray.Acceleration = Vector3.new(0, -14, 0)
-	spray.LightEmission = 0.4
+	spray.LightEmission = 0.1
 	spray.Parent = water
-	cylinder(7, 2.4, Vector3.new(0, 5.9, 0), { Name = "Pillar", Color = C.Marble, Material = Enum.Material.Marble, Parent = fountain })
-	cylinder(0.8, 8, Vector3.new(0, 6.5, 0), { Name = "Tier", Color = C.Marble, Material = Enum.Material.Marble, Parent = fountain })
+	cylinder(7, 2.4, Vector3.new(0, 5.9, 0), { Name = "Pillar", Color = C.White, Material = Enum.Material.Marble, Parent = fountain })
+	disc(0.8, 8, Vector3.new(0, 6.5, 0), C.White, Enum.Material.Marble, fountain, { Name = "Tier" })
 	local orb = ball(
-		3.2,
-		Vector3.new(0, 10.5, 0),
-		{ Name = "Orb", Color = C.Cyan, Material = Enum.Material.Neon, CanCollide = false, Parent = fountain }
+		3,
+		Vector3.new(0, 10.4, 0),
+		{ Name = "Orb", Color = C.White, Material = Enum.Material.Marble, CanCollide = false, Parent = fountain }
 	)
-	pointLight(orb, C.Cyan, 44, 2.2)
-	sparkles(orb, C.Cyan, 14, 2)
-	bobAndSpin(orb, 0.8, 3)
+	bob(orb, 0.5, 4)
 
 	-- Spawns
 	local spawns = folder("Spawns", root)
 	for i = 0, 3 do
 		local angle = math.rad(45 + i * 90)
 		local pos = Vector3.new(math.cos(angle) * 32, 0, math.sin(angle) * 32)
-		neon({
-			Name = "SpawnGlow",
-			Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(0.2, 8.5, 8.5),
-			CFrame = CFrame.new(pos + Vector3.new(0, 0.95, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-			Color = C.Pink,
-			Transparency = 0.3,
-			CanCollide = false,
-			Parent = spawns,
-		})
 		local spawn = Instance.new("SpawnLocation")
 		spawn.Name = "Spawn" .. (i + 1)
 		spawn.Anchored = true
-		spawn.Size = Vector3.new(7, 0.6, 7)
-		spawn.Position = pos + Vector3.new(0, 1.15, 0)
-		spawn.Color = C.PlazaLight
-		spawn.Material = Enum.Material.Metal
+		spawn.Size = Vector3.new(7, 0.5, 7)
+		spawn.Position = pos + Vector3.new(0, 1.1, 0)
+		spawn.Color = C.PlazaMid
+		spawn.Material = Enum.Material.Granite
 		spawn.TopSurface = Enum.SurfaceType.Smooth
 		spawn.Neutral = true
 		spawn.Duration = 0
 		spawn.Parent = spawns
+		trim(Vector3.new(7.4, 0.2, 7.4), CFrame.new(pos + Vector3.new(0, 0.95, 0)), C.Stone, spawns)
 	end
 
-	-- Benches
-	for i = 0, 5 do
-		local angle = math.rad(i * 60 + 30)
+	-- Benches and planters alternate around the plaza.
+	for i = 0, 11 do
+		local angle = math.rad(i * 30 + 15)
 		local pos = Vector3.new(math.cos(angle) * 48, 0, math.sin(angle) * 48)
 		local cf = lookAtGround(pos, ORIGIN)
-		part({
-			Name = "Bench",
-			Size = Vector3.new(6, 0.5, 1.6),
-			CFrame = cf * CFrame.new(0, 1.6, 0),
-			Color = C.MarbleDark,
-			Material = Enum.Material.WoodPlanks,
-			Parent = f,
-		})
-		for _, dx in ipairs({ -2.4, 2.4 }) do
+		if i % 2 == 0 then
 			part({
-				Name = "BenchLeg",
-				Size = Vector3.new(0.5, 1.4, 1.4),
-				CFrame = cf * CFrame.new(dx, 0.7, 0),
-				Color = C.Metal,
-				Material = Enum.Material.Metal,
+				Name = "Bench",
+				Size = Vector3.new(6, 0.5, 1.6),
+				CFrame = cf * CFrame.new(0, 1.6, 0),
+				Color = C.Wood,
+				Material = Enum.Material.WoodPlanks,
 				Parent = f,
 			})
+			for _, dx in ipairs({ -2.4, 2.4 }) do
+				part({
+					Name = "BenchLeg",
+					Size = Vector3.new(0.5, 1.4, 1.4),
+					CFrame = cf * CFrame.new(dx, 0.7, 0),
+					Color = C.Charcoal,
+					Material = Enum.Material.Metal,
+					Parent = f,
+				})
+			end
+		else
+			part({
+				Name = "Planter",
+				Size = Vector3.new(3.2, 1.6, 3.2),
+				CFrame = cf * CFrame.new(0, 1.4, 0),
+				Color = C.Charcoal,
+				Material = Enum.Material.Concrete,
+				Parent = f,
+			})
+			part({
+				Name = "Soil",
+				Size = Vector3.new(2.8, 0.3, 2.8),
+				CFrame = cf * CFrame.new(0, 2.3, 0),
+				Color = C.Grass,
+				Material = Enum.Material.Grass,
+				CanCollide = false,
+				Parent = f,
+			})
+			cylinder(
+				4.5,
+				0.7,
+				(cf * CFrame.new(0, 4.5, 0)).Position,
+				{ Name = "Trunk", Color = C.Wood, Material = Enum.Material.Wood, CanCollide = false, Parent = f }
+			)
+			ball(
+				4.6,
+				(cf * CFrame.new(0, 8.2, 0)).Position,
+				{ Name = "Canopy", Color = C.Grass, Material = Enum.Material.Grass, CanCollide = false, Parent = f }
+			)
 		end
 	end
 end
@@ -383,24 +369,8 @@ local function buildPaths(root)
 				Material = Enum.Material.Pavement,
 				Parent = f,
 			})
-			neon({
-				Name = "PathEdge",
-				Size = Vector3.new(0.3, 0.2, length),
-				CFrame = cf * CFrame.new(-5.1, 0.25, 0),
-				Color = C.Pink,
-				Transparency = 0.45,
-				CanCollide = false,
-				Parent = f,
-			})
-			neon({
-				Name = "PathEdge",
-				Size = Vector3.new(0.3, 0.2, length),
-				CFrame = cf * CFrame.new(5.1, 0.25, 0),
-				Color = C.Cyan,
-				Transparency = 0.45,
-				CanCollide = false,
-				Parent = f,
-			})
+			trim(Vector3.new(0.4, 0.34, length), cf * CFrame.new(-5.2, 0.17, 0), C.Stone, f)
+			trim(Vector3.new(0.4, 0.34, length), cf * CFrame.new(5.2, 0.17, 0), C.Stone, f)
 		end
 	end
 end
@@ -412,116 +382,104 @@ local function buildStage(root)
 		Name = "Platform",
 		Size = Vector3.new(48, 3, 20),
 		Position = center + Vector3.new(0, 1.5, 0),
-		Color = C.Metal,
-		Material = Enum.Material.Metal,
+		Color = C.Charcoal,
+		Material = Enum.Material.Concrete,
 		Parent = f,
 	})
-	-- Steps toward the plaza
 	part({
 		Name = "Step",
 		Size = Vector3.new(14, 2, 2),
 		Position = Vector3.new(0, 1, -74),
-		Color = C.MetalLight,
-		Material = Enum.Material.Metal,
+		Color = C.Stone,
+		Material = Enum.Material.Concrete,
 		Parent = f,
 	})
 	part({
 		Name = "Step",
 		Size = Vector3.new(14, 1, 2),
 		Position = Vector3.new(0, 0.5, -72),
-		Color = C.MetalLight,
-		Material = Enum.Material.Metal,
+		Color = C.Stone,
+		Material = Enum.Material.Concrete,
 		Parent = f,
 	})
-	-- Edge neon
-	for _, def in ipairs({
-		{ Vector3.new(48.4, 0.5, 0.6), Vector3.new(0, 3.1, -75.1) },
-		{ Vector3.new(48.4, 0.5, 0.6), Vector3.new(0, 3.1, -94.9) },
-		{ Vector3.new(0.6, 0.5, 20), Vector3.new(-24.1, 3.1, -85) },
-		{ Vector3.new(0.6, 0.5, 20), Vector3.new(24.1, 3.1, -85) },
-	}) do
-		neon({ Name = "StageEdge", Size = def[1], Position = def[2], Color = C.Pink, CanCollide = false, Parent = f })
+	-- White edge trim
+	trim(Vector3.new(48.4, 0.2, 0.5), CFrame.new(0, 3.1, -75.1), C.White, f)
+	trim(Vector3.new(48.4, 0.2, 0.5), CFrame.new(0, 3.1, -94.9), C.White, f)
+	trim(Vector3.new(0.5, 0.2, 20), CFrame.new(-24.1, 3.1, -85), C.White, f)
+	trim(Vector3.new(0.5, 0.2, 20), CFrame.new(24.1, 3.1, -85), C.White, f)
+	-- Two duel spots
+	for _, dx in ipairs({ -5, 5 }) do
+		disc(
+			0.12,
+			6.5,
+			center + Vector3.new(dx, 3.08, 0),
+			C.White,
+			Enum.Material.SmoothPlastic,
+			f,
+			{ Name = "DuelRing", CanCollide = false }
+		)
+		disc(
+			0.14,
+			5.5,
+			center + Vector3.new(dx, 3.08, 0),
+			C.Charcoal,
+			Enum.Material.Concrete,
+			f,
+			{ Name = "DuelRingInner", CanCollide = false }
+		)
 	end
-	neon({
-		Name = "StageCenter",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.2, 9, 9),
-		CFrame = CFrame.new(0, 3.1, -85) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = C.Pink,
-		Transparency = 0.35,
-		CanCollide = false,
-		Parent = f,
-	})
+	disc(0.12, 3, center + Vector3.new(0, 3.08, 0), C.Accent, Enum.Material.SmoothPlastic, f, { Name = "CenterMark", CanCollide = false })
 
-	-- Backdrop + title
-	local backdrop = part({
+	-- Backdrop: white wall, charcoal title
+	local backCF = lookAtGround(Vector3.new(0, 0, -97), ORIGIN)
+	part({
 		Name = "Backdrop",
 		Size = Vector3.new(54, 26, 2),
-		CFrame = lookAtGround(Vector3.new(0, 0, -97), ORIGIN) * CFrame.new(0, 13, 0),
-		Color = C.Metal,
-		Material = Enum.Material.Metal,
+		CFrame = backCF * CFrame.new(0, 13, 0),
+		Color = C.White,
+		Material = Enum.Material.Concrete,
 		Parent = f,
 	})
-	sign(backdrop, Enum.NormalId.Front, "MOG STAGE", C.Pink, "show them what you built", 30)
-	for _, dx in ipairs({ -26.6, 26.6 }) do
-		neon({
-			Name = "BackdropEdge",
-			Size = Vector3.new(0.6, 26, 0.8),
-			Position = Vector3.new(dx, 13, -96.2),
-			Color = C.Cyan,
-			CanCollide = false,
+	board(Vector3.new(40, 9, 0.4), backCF * CFrame.new(0, 17, -1.2), f, "MOG OFF", "the stage settles it", C.Charcoal, C.White, 30)
+	trim(Vector3.new(54.4, 0.6, 2.4), CFrame.new(0, 26.2, -97), C.Charcoal, f)
+	for _, dx in ipairs({ -27.2, 27.2 }) do
+		part({
+			Name = "BackdropPillar",
+			Size = Vector3.new(1.2, 26, 2.4),
+			Position = Vector3.new(dx, 13, -97),
+			Color = C.Charcoal,
+			Material = Enum.Material.Concrete,
 			Parent = f,
 		})
 	end
-	neon({
-		Name = "BackdropTop",
-		Size = Vector3.new(54.6, 0.6, 0.8),
-		Position = Vector3.new(0, 26.2, -96.2),
-		Color = C.Cyan,
-		CanCollide = false,
-		Parent = f,
-	})
 
-	-- Spotlights
-	local i = 0
-	for _, x in ipairs({ -28, 28 }) do
-		for _, z in ipairs({ -78, -85, -92 }) do
-			i += 1
-			part({
-				Name = "SpotPost",
-				Size = Vector3.new(0.8, 14, 0.8),
-				Position = Vector3.new(x, 7, z),
-				Color = C.Metal,
-				Material = Enum.Material.Metal,
-				Parent = f,
-			})
-			local headPos = Vector3.new(x, 14.6, z)
-			local head = part({
-				Name = "SpotHead",
-				Size = Vector3.new(1.8, 1.8, 2.4),
-				CFrame = CFrame.lookAt(headPos, center + Vector3.new(0, 3, 0)),
-				Color = C.Metal,
-				Material = Enum.Material.Metal,
-				Parent = f,
-			})
-			local color = NEON_CYCLE[(i % #NEON_CYCLE) + 1]
-			neon({
-				Name = "SpotLens",
-				Size = Vector3.new(1.4, 1.4, 0.3),
-				CFrame = head.CFrame * CFrame.new(0, 0, -1.25),
-				Color = color,
-				CanCollide = false,
-				Parent = f,
-			})
-			local spot = Instance.new("SpotLight")
-			spot.Angle = 42
-			spot.Brightness = 5
-			spot.Range = 48
-			spot.Color = color
-			spot.Face = Enum.NormalId.Front
-			spot.Shadows = true
-			spot.Parent = head
-		end
+	-- Two soft white stage lights
+	for _, x in ipairs({ -22, 22 }) do
+		part({
+			Name = "LightPost",
+			Size = Vector3.new(0.7, 14, 0.7),
+			Position = Vector3.new(x, 7, -78),
+			Color = C.Charcoal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+		local headPos = Vector3.new(x, 14.4, -78)
+		local head = part({
+			Name = "LightHead",
+			Size = Vector3.new(1.6, 1.6, 2.2),
+			CFrame = CFrame.lookAt(headPos, center + Vector3.new(0, 4, 0)),
+			Color = C.Charcoal,
+			Material = Enum.Material.Metal,
+			Parent = f,
+		})
+		local spot = Instance.new("SpotLight")
+		spot.Angle = 55
+		spot.Brightness = 1.2
+		spot.Range = 40
+		spot.Color = WARM_LIGHT
+		spot.Face = Enum.NormalId.Front
+		spot.Shadows = true
+		spot.Parent = head
 	end
 end
 
@@ -532,35 +490,22 @@ local function buildGym(root)
 		Name = "Mat",
 		Size = Vector3.new(44, 0.5, 44),
 		Position = Vector3.new(cx, 0.25, 0),
-		Color = Color3.fromRGB(38, 38, 46),
+		Color = C.Charcoal,
 		Material = Enum.Material.Fabric,
 		Parent = f,
 	})
-	for _, def in ipairs({
-		{ Vector3.new(44.4, 0.3, 0.4), Vector3.new(cx, 0.6, -22.1) },
-		{ Vector3.new(44.4, 0.3, 0.4), Vector3.new(cx, 0.6, 22.1) },
-		{ Vector3.new(0.4, 0.3, 44), Vector3.new(cx - 22.1, 0.6, 0) },
-		{ Vector3.new(0.4, 0.3, 44), Vector3.new(cx + 22.1, 0.6, 0) },
-	}) do
-		neon({ Name = "MatEdge", Size = def[1], Position = def[2], Color = C.Cyan, Transparency = 0.2, CanCollide = false, Parent = f })
-	end
-	local wall = part({
+	trim(Vector3.new(44.6, 0.2, 44.6), CFrame.new(cx, 0.1, 0), C.Stone, f)
+	local wallCF = lookAtGround(Vector3.new(cx, 0, -24), Vector3.new(cx, 0, 0))
+	part({
 		Name = "GymWall",
 		Size = Vector3.new(44, 14, 2),
-		CFrame = lookAtGround(Vector3.new(cx, 0, -24), Vector3.new(cx, 0, 0)) * CFrame.new(0, 7, 0),
-		Color = C.Metal,
-		Material = Enum.Material.Metal,
+		CFrame = wallCF * CFrame.new(0, 7, 0),
+		Color = C.White,
+		Material = Enum.Material.Concrete,
 		Parent = f,
 	})
-	sign(wall, Enum.NormalId.Front, "THE GYM", C.Cyan, "every rep pays. E to lift.", 30)
-	neon({
-		Name = "GymWallTop",
-		Size = Vector3.new(44.4, 0.5, 0.8),
-		Position = Vector3.new(cx, 14.2, -23.2),
-		Color = C.Cyan,
-		CanCollide = false,
-		Parent = f,
-	})
+	board(Vector3.new(30, 6, 0.4), wallCF * CFrame.new(0, 9, -1.2), f, "THE GYM", "every rep pays  |  press E", C.Charcoal, C.White, 36)
+	trim(Vector3.new(44.4, 0.6, 2.4), CFrame.new(cx, 14.2, -24), C.Charcoal, f)
 
 	-- Squat rack + barbell
 	local rx, rz = cx - 12, -8
@@ -569,7 +514,7 @@ local function buildGym(root)
 			Name = "RackPost",
 			Size = Vector3.new(1, 10, 1),
 			Position = Vector3.new(rx + dx, 5, rz),
-			Color = C.Metal,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			Parent = f,
 		})
@@ -578,7 +523,7 @@ local function buildGym(root)
 		Name = "RackTop",
 		Size = Vector3.new(7, 0.6, 0.6),
 		Position = Vector3.new(rx, 10.2, rz),
-		Color = C.Metal,
+		Color = C.Charcoal,
 		Material = Enum.Material.Metal,
 		Parent = f,
 	})
@@ -586,7 +531,7 @@ local function buildGym(root)
 		Name = "Barbell",
 		Size = Vector3.new(10, 0.35, 0.35),
 		Position = Vector3.new(rx, 6, rz),
-		Color = C.MetalLight,
+		Color = C.Steel,
 		Material = Enum.Material.Metal,
 		Tag = "GymBar",
 		Parent = f,
@@ -598,7 +543,7 @@ local function buildGym(root)
 			Shape = Enum.PartType.Cylinder,
 			Size = Vector3.new(0.6, 3.2, 3.2),
 			CFrame = CFrame.new(rx + dx, 6, rz),
-			Color = C.Black,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			CanCollide = false,
 			Parent = f,
@@ -612,7 +557,7 @@ local function buildGym(root)
 			Name = "PullPost",
 			Size = Vector3.new(0.8, 9, 0.8),
 			Position = Vector3.new(px + dx, 4.5, pz),
-			Color = C.Metal,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			Parent = f,
 		})
@@ -621,7 +566,7 @@ local function buildGym(root)
 		Name = "PullUpBar",
 		Size = Vector3.new(7, 0.4, 0.4),
 		Position = Vector3.new(px, 9, pz),
-		Color = C.MetalLight,
+		Color = C.Steel,
 		Material = Enum.Material.Metal,
 		Tag = "GymBar",
 		Parent = f,
@@ -634,7 +579,7 @@ local function buildGym(root)
 		Name = "Bench",
 		Size = Vector3.new(2.2, 0.6, 6),
 		Position = Vector3.new(bx, 1.7, bz),
-		Color = Color3.fromRGB(125, 30, 45),
+		Color = Color3.fromRGB(70, 70, 80),
 		Material = Enum.Material.Fabric,
 		Tag = "GymBar",
 		Parent = f,
@@ -645,7 +590,7 @@ local function buildGym(root)
 			Name = "BenchLeg",
 			Size = Vector3.new(0.5, 1.4, 0.5),
 			Position = Vector3.new(bx, 0.7, bz + dz),
-			Color = C.Metal,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			Parent = f,
 		})
@@ -655,7 +600,7 @@ local function buildGym(root)
 			Name = "BenchPost",
 			Size = Vector3.new(0.6, 5, 0.6),
 			Position = Vector3.new(bx + dx, 2.5, bz - 1.5),
-			Color = C.Metal,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			Parent = f,
 		})
@@ -664,7 +609,7 @@ local function buildGym(root)
 		Name = "BenchBar",
 		Size = Vector3.new(8, 0.3, 0.3),
 		Position = Vector3.new(bx, 5, bz - 1.5),
-		Color = C.MetalLight,
+		Color = C.Steel,
 		Material = Enum.Material.Metal,
 		CanCollide = false,
 		Parent = f,
@@ -676,7 +621,7 @@ local function buildGym(root)
 		Name = "DumbbellRack",
 		Size = Vector3.new(12, 0.6, 2),
 		Position = Vector3.new(dx0, 2.5, dz),
-		Color = C.Metal,
+		Color = C.Charcoal,
 		Material = Enum.Material.Metal,
 		Parent = f,
 	})
@@ -685,7 +630,7 @@ local function buildGym(root)
 			Name = "RackLeg",
 			Size = Vector3.new(0.6, 2.5, 2),
 			Position = Vector3.new(dx0 + dx, 1.25, dz),
-			Color = C.Metal,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			Parent = f,
 		})
@@ -696,7 +641,7 @@ local function buildGym(root)
 			Name = "DumbbellHandle",
 			Size = Vector3.new(1.6, 0.3, 0.3),
 			Position = Vector3.new(x, 3.1, dz),
-			Color = C.MetalLight,
+			Color = C.Steel,
 			Material = Enum.Material.Metal,
 			CanCollide = false,
 			Parent = f,
@@ -707,7 +652,7 @@ local function buildGym(root)
 				Shape = Enum.PartType.Cylinder,
 				Size = Vector3.new(0.5, 1.2, 1.2),
 				CFrame = CFrame.new(x + off, 3.1, dz),
-				Color = C.Black,
+				Color = C.Charcoal,
 				Material = Enum.Material.Metal,
 				CanCollide = false,
 				Parent = f,
@@ -721,96 +666,91 @@ local function buildShops(root)
 	local zs = { -36, -18, 0, 18, 36 }
 	for i, statName in ipairs(Constants.STAT_ORDER) do
 		local def = Constants.STATS[statName]
-		local color = STAT_COLORS[statName] or C.White
+		local color = STAT_COLORS[statName] or C.Charcoal
 		local cz = zs[i]
 		part({
 			Name = "StallPad",
 			Size = Vector3.new(14, 0.4, 16),
 			Position = Vector3.new(82, 0.2, cz),
-			Color = C.PlazaLight,
-			Material = Enum.Material.Pavement,
+			Color = C.PlazaMid,
+			Material = Enum.Material.Granite,
 			Parent = f,
 		})
-		local back = part({
+		local wallCF = lookAtGround(Vector3.new(88, 0, cz), Vector3.new(0, 0, cz))
+		part({
 			Name = "StallWall",
 			Size = Vector3.new(1.2, 10, 14),
-			CFrame = lookAtGround(Vector3.new(88, 0, cz), Vector3.new(0, 0, cz)) * CFrame.new(0, 5, 0),
-			Color = C.Metal,
-			Material = Enum.Material.Metal,
+			CFrame = wallCF * CFrame.new(0, 5, 0),
+			Color = C.White,
+			Material = Enum.Material.Concrete,
 			Parent = f,
 		})
-		sign(back, Enum.NormalId.Front, def.DisplayName:upper(), color, "upgrade station", 36)
+		board(
+			Vector3.new(10, 3.6, 0.3),
+			wallCF * CFrame.new(0, 7, -0.75),
+			f,
+			def.DisplayName:upper(),
+			"upgrade station",
+			color,
+			C.White,
+			40
+		)
 		local counter = part({
 			Name = statName .. "Counter",
 			Size = Vector3.new(2.4, 3.2, 10),
 			Position = Vector3.new(78, 1.6, cz),
-			Color = Color3.fromRGB(52, 52, 66),
+			Color = C.Charcoal,
 			Material = Enum.Material.Marble,
 			Tag = "ShopStall",
 			Attributes = { StatName = statName },
 			Parent = f,
 		})
 		prompt(counter, "Browse Upgrades", def.DisplayName .. " Shop", 0, 11)
-		neon({
-			Name = "CounterTrim",
-			Size = Vector3.new(0.3, 0.3, 10),
-			Position = Vector3.new(76.7, 3.25, cz),
-			Color = color,
-			CanCollide = false,
-			Parent = f,
-		})
+		trim(Vector3.new(0.3, 0.3, 10), CFrame.new(76.7, 3.25, cz), color, f)
 		part({
 			Name = "Canopy",
 			Size = Vector3.new(14, 0.5, 16),
 			Position = Vector3.new(82, 9.5, cz),
-			Color = Color3.fromRGB(30, 30, 40),
+			Color = C.White,
 			Material = Enum.Material.SmoothPlastic,
 			Parent = f,
 		})
-		neon({
-			Name = "CanopyTrim",
-			Size = Vector3.new(0.4, 0.4, 16),
-			Position = Vector3.new(75.2, 9.3, cz),
-			Color = color,
-			CanCollide = false,
-			Parent = f,
-		})
+		trim(Vector3.new(0.3, 0.5, 16), CFrame.new(75.15, 9.5, cz), color, f)
 		for _, dz in ipairs({ -7.5, 7.5 }) do
 			part({
 				Name = "CanopyPost",
 				Size = Vector3.new(0.6, 9.5, 0.6),
 				Position = Vector3.new(75.5, 4.75, cz + dz),
-				Color = C.Metal,
+				Color = C.Stone,
 				Material = Enum.Material.Metal,
 				Parent = f,
 			})
 		end
 		local orb = ball(
-			1.6,
-			Vector3.new(78, 4.4, cz),
-			{ Name = "DisplayOrb", Color = color, Material = Enum.Material.Neon, CanCollide = false, Parent = f }
+			1.5,
+			Vector3.new(78, 4.3, cz),
+			{ Name = "DisplayOrb", Color = color, Material = Enum.Material.SmoothPlastic, CanCollide = false, Parent = f }
 		)
-		pointLight(orb, color, 18, 1.6)
-		bobAndSpin(orb, 0.4, 2 + i * 0.3)
+		bob(orb, 0.3, 2.6 + i * 0.3)
 	end
-	-- Zone sign
 	part({
 		Name = "ShopSignPost",
-		Size = Vector3.new(1, 16, 1),
+		Size = Vector3.new(0.8, 16, 0.8),
 		Position = Vector3.new(70, 8, -48),
-		Color = C.Metal,
+		Color = C.Charcoal,
 		Material = Enum.Material.Metal,
 		Parent = f,
 	})
-	local board = part({
-		Name = "ShopSign",
-		Size = Vector3.new(12, 4, 0.8),
-		CFrame = lookAtGround(Vector3.new(70, 0, -48), ORIGIN) * CFrame.new(0, 15, 0),
-		Color = C.Black,
-		Material = Enum.Material.SmoothPlastic,
-		Parent = f,
-	})
-	sign(board, Enum.NormalId.Front, "UPGRADES", C.Gold, nil, 40)
+	board(
+		Vector3.new(12, 4, 0.8),
+		lookAtGround(Vector3.new(70, 0, -48), ORIGIN) * CFrame.new(0, 15, 0),
+		f,
+		"UPGRADES",
+		nil,
+		C.Charcoal,
+		C.White,
+		40
+	)
 end
 
 local function buildMirror(root)
@@ -820,15 +760,15 @@ local function buildMirror(root)
 		Name = "MirrorBase",
 		Size = Vector3.new(12, 1, 4),
 		CFrame = base * CFrame.new(0, 0.5, 0),
-		Color = C.MarbleDark,
-		Material = Enum.Material.Marble,
+		Color = C.Stone,
+		Material = Enum.Material.Concrete,
 		Parent = f,
 	})
 	local frame = part({
 		Name = "MirrorFrame",
 		Size = Vector3.new(9, 15, 1.2),
 		CFrame = base * CFrame.new(0, 8.5, 0),
-		Color = Color3.fromRGB(205, 172, 92),
+		Color = C.Gold,
 		Material = Enum.Material.Metal,
 		Parent = f,
 	})
@@ -836,7 +776,7 @@ local function buildMirror(root)
 		Name = "MirrorGlass",
 		Size = Vector3.new(7.6, 13.4, 0.4),
 		CFrame = frame.CFrame * CFrame.new(0, 0, -0.5),
-		Color = Color3.fromRGB(215, 230, 255),
+		Color = C.Glass,
 		Material = Enum.Material.Glass,
 		Reflectance = 1,
 		Transparency = 0.05,
@@ -844,32 +784,8 @@ local function buildMirror(root)
 		Parent = f,
 	})
 	prompt(glass, "Check Your Mog", "The Mirror", 0.6, 11)
-	pointLight(glass, C.Pink, 22, 1.4)
-	neon({
-		Name = "MirrorTrim",
-		Size = Vector3.new(0.35, 15.2, 0.35),
-		CFrame = frame.CFrame * CFrame.new(-4.8, 0, -0.3),
-		Color = C.Pink,
-		CanCollide = false,
-		Parent = f,
-	})
-	neon({
-		Name = "MirrorTrim",
-		Size = Vector3.new(0.35, 15.2, 0.35),
-		CFrame = frame.CFrame * CFrame.new(4.8, 0, -0.3),
-		Color = C.Cyan,
-		CanCollide = false,
-		Parent = f,
-	})
-	local header = part({
-		Name = "MirrorHeader",
-		Size = Vector3.new(11, 2.4, 0.8),
-		CFrame = base * CFrame.new(0, 17.5, 0),
-		Color = C.Black,
-		Material = Enum.Material.SmoothPlastic,
-		Parent = f,
-	})
-	sign(header, Enum.NormalId.Front, "RATE YOURSELF", C.Pink, nil, 40)
+	pointLight(glass, WARM_LIGHT, 18, 0.6)
+	board(Vector3.new(11, 2.4, 0.8), base * CFrame.new(0, 17.5, 0), f, "RATE YOURSELF", nil, C.Charcoal, C.White, 40)
 end
 
 local function buildKiosk(root)
@@ -879,96 +795,42 @@ local function buildKiosk(root)
 		Name = "KioskBody",
 		Size = Vector3.new(7, 9, 4),
 		CFrame = base * CFrame.new(0, 4.5, 0),
-		Color = Color3.fromRGB(28, 28, 38),
+		Color = C.Charcoal,
 		Material = Enum.Material.Metal,
 		Tag = "CreditCheckKiosk",
 		Parent = f,
 	})
 	prompt(body, "Run Credit Check", "Credit Check", 0.6, 12)
-	local screen = part({
-		Name = "KioskScreen",
-		Size = Vector3.new(5.2, 3.6, 0.3),
-		CFrame = body.CFrame * CFrame.new(0, 1.5, -2.15),
-		Color = Color3.fromRGB(10, 16, 13),
-		Material = Enum.Material.SmoothPlastic,
-		Parent = f,
-	})
-	sign(screen, Enum.NormalId.Front, "CREDIT CHECK", C.Green, "verify score - get paid", 48)
+	board(
+		Vector3.new(5.2, 3.6, 0.3),
+		body.CFrame * CFrame.new(0, 1.5, -2.15),
+		f,
+		"CREDIT CHECK",
+		"verify score  |  get paid",
+		C.Green,
+		C.Screen,
+		48
+	)
 	part({
 		Name = "Keypad",
 		Size = Vector3.new(3, 1.6, 0.2),
 		CFrame = body.CFrame * CFrame.new(0, -1.2, -2.1),
-		Color = Color3.fromRGB(60, 60, 74),
+		Color = C.Stone,
 		Material = Enum.Material.SmoothPlastic,
 		Parent = f,
 	})
-	neon({
-		Name = "Slot",
-		Size = Vector3.new(3.5, 0.3, 0.2),
-		CFrame = body.CFrame * CFrame.new(0, -2.6, -2.1),
-		Color = C.Green,
-		CanCollide = false,
-		Parent = f,
-	})
-	local roof = part({
-		Name = "KioskRoof",
-		Size = Vector3.new(8, 1.8, 4.4),
-		CFrame = body.CFrame * CFrame.new(0, 5.4, 0),
-		Color = C.Black,
-		Material = Enum.Material.SmoothPlastic,
-		Parent = f,
-	})
-	sign(roof, Enum.NormalId.Front, "$ CREDITS $", C.Green, nil, 48)
-	neon({
-		Name = "RoofTrim",
-		Size = Vector3.new(8.2, 0.4, 4.6),
-		CFrame = body.CFrame * CFrame.new(0, 4.4, 0),
-		Color = C.Green,
-		CanCollide = false,
-		Parent = f,
-	})
-	local lamp = neon({
-		Name = "KioskLamp",
-		Size = Vector3.new(0.6, 0.6, 0.6),
-		CFrame = body.CFrame * CFrame.new(0, 3.8, -2.6),
-		Color = C.Green,
-		CanCollide = false,
-		Parent = f,
-	})
-	pointLight(lamp, C.Green, 20, 1.8)
+	trim(Vector3.new(3.5, 0.3, 0.2), body.CFrame * CFrame.new(0, -2.6, -2.1), C.Accent, f)
+	board(Vector3.new(8, 1.8, 4.4), body.CFrame * CFrame.new(0, 5.4, 0), f, "CREDITS", nil, C.Charcoal, C.White, 48)
 end
 
 local function buildAltar(root)
 	local f = folder("Altar", root)
 	local center = Vector3.new(0, 0, 92)
-	cylinder(1, 22, center + Vector3.new(0, 0.5, 0), { Name = "Tier1", Color = C.MarbleDark, Material = Enum.Material.Marble, Parent = f })
-	neon({
-		Name = "Ring",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.2, 17.5, 17.5),
-		CFrame = CFrame.new(center + Vector3.new(0, 1.1, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = C.Purple,
-		Transparency = 0.2,
-		CanCollide = false,
-		Parent = f,
-	})
-	cylinder(1, 16, center + Vector3.new(0, 1.5, 0), { Name = "Tier2", Color = C.MarbleDark, Material = Enum.Material.Marble, Parent = f })
-	neon({
-		Name = "Ring",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.2, 11.5, 11.5),
-		CFrame = CFrame.new(center + Vector3.new(0, 2.1, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = C.Purple,
-		Transparency = 0.2,
-		CanCollide = false,
-		Parent = f,
-	})
-	cylinder(
-		1,
-		10,
-		center + Vector3.new(0, 2.5, 0),
-		{ Name = "Tier3", Color = Color3.fromRGB(58, 48, 86), Material = Enum.Material.Marble, Parent = f }
-	)
+	disc(1, 22, center + Vector3.new(0, 0.5, 0), C.Stone, Enum.Material.Marble, f, { Name = "Tier1" })
+	disc(1, 16, center + Vector3.new(0, 1.5, 0), C.PlazaMid, Enum.Material.Marble, f, { Name = "Tier2" })
+	disc(1, 10, center + Vector3.new(0, 2.5, 0), C.White, Enum.Material.Marble, f, { Name = "Tier3" })
+	disc(0.12, 10.6, center + Vector3.new(0, 3.05, 0), C.Purple, Enum.Material.SmoothPlastic, f, { Name = "AltarRing", CanCollide = false })
+	disc(0.14, 9.4, center + Vector3.new(0, 3.05, 0), C.White, Enum.Material.Marble, f, { Name = "AltarRingInner", CanCollide = false })
 
 	for i = 0, 3 do
 		local angle = math.rad(45 + i * 90)
@@ -977,37 +839,52 @@ local function buildAltar(root)
 			Name = "AltarPillar",
 			Size = Vector3.new(1.6, 14, 1.6),
 			Position = pos + Vector3.new(0, 7, 0),
-			Color = C.MarbleDark,
+			Color = C.White,
 			Material = Enum.Material.Marble,
 			Parent = f,
 		})
-		local cap = ball(
+		ball(
 			2,
 			pos + Vector3.new(0, 15, 0),
-			{ Name = "PillarCap", Color = C.Purple, Material = Enum.Material.Neon, CanCollide = false, Parent = f }
+			{ Name = "PillarCap", Color = C.White, Material = Enum.Material.Marble, CanCollide = false, Parent = f }
 		)
-		pointLight(cap, C.Purple, 18, 1.2)
 	end
 
-	local orb = ball(
-		4.5,
-		center + Vector3.new(0, 9, 0),
-		{ Name = "RebirthOrb", Color = C.Purple, Material = Enum.Material.Neon, CanCollide = false, Tag = "RebirthAltar", Parent = f }
-	)
-	prompt(orb, "Rebirth", "Altar of Rebirth", 1, 14)
-	pointLight(orb, C.Purple, 40, 3)
-	sparkles(orb, C.Purple, 22, 3)
-	bobAndSpin(orb, 1.2, 2.5)
-
-	local header = part({
-		Name = "AltarHeader",
-		Size = Vector3.new(16, 3.2, 0.8),
-		CFrame = lookAtGround(center + Vector3.new(0, 0, 12), ORIGIN) * CFrame.new(0, 18, 0),
-		Color = C.Black,
-		Material = Enum.Material.SmoothPlastic,
+	-- The one glowing object in the world.
+	local orb = ball(4.2, center + Vector3.new(0, 9, 0), {
+		Name = "RebirthOrb",
+		Color = C.Purple,
+		Material = Enum.Material.Neon,
+		Transparency = 0.15,
+		CanCollide = false,
+		Tag = "RebirthAltar",
 		Parent = f,
 	})
-	sign(header, Enum.NormalId.Front, "REBIRTH", C.Purple, "reset. come back stronger.", 40)
+	prompt(orb, "Rebirth", "Altar of Rebirth", 1, 14)
+	pointLight(orb, C.Purple, 26, 1.0)
+	local e = Instance.new("ParticleEmitter")
+	e.Color = ColorSequence.new(C.Purple)
+	e.Rate = 6
+	e.Lifetime = NumberRange.new(1.5, 2.5)
+	e.Speed = NumberRange.new(1, 1.6)
+	e.SpreadAngle = Vector2.new(30, 30)
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 0) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) })
+	e.LightEmission = 0.5
+	e.Acceleration = Vector3.new(0, 1, 0)
+	e.Parent = orb
+	bob(orb, 1, 3)
+
+	board(
+		Vector3.new(16, 3.2, 0.8),
+		lookAtGround(center + Vector3.new(0, 0, 12), ORIGIN) * CFrame.new(0, 18, 0),
+		f,
+		"REBIRTH",
+		"reset. come back stronger.",
+		C.Purple,
+		C.White,
+		40
+	)
 end
 
 local function buildLeaderboard(root)
@@ -1018,7 +895,7 @@ local function buildLeaderboard(root)
 			Name = "BoardPost",
 			Size = Vector3.new(1.2, 9, 1.2),
 			CFrame = base * CFrame.new(dx, 4.5, 0),
-			Color = C.Metal,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			Parent = f,
 		})
@@ -1027,26 +904,19 @@ local function buildLeaderboard(root)
 		Name = "LeaderboardBoard",
 		Size = Vector3.new(24, 15, 1.2),
 		CFrame = base * CFrame.new(0, 15.5, 0),
-		Color = Color3.fromRGB(12, 12, 18),
+		Color = C.Screen,
 		Material = Enum.Material.SmoothPlastic,
 		Tag = "LeaderboardBoard",
 		Parent = f,
 	})
 	prompt(screen, "Open Leaderboard", "Top Moggers", 0, 18)
 	for _, def in ipairs({
-		{ Vector3.new(24.6, 0.5, 1.4), Vector3.new(0, 7.75, 0) },
-		{ Vector3.new(24.6, 0.5, 1.4), Vector3.new(0, -7.75, 0) },
-		{ Vector3.new(0.5, 15.6, 1.4), Vector3.new(-12.3, 0, 0) },
-		{ Vector3.new(0.5, 15.6, 1.4), Vector3.new(12.3, 0, 0) },
+		{ Vector3.new(24.8, 0.4, 1.4), Vector3.new(0, 7.7, 0) },
+		{ Vector3.new(24.8, 0.4, 1.4), Vector3.new(0, -7.7, 0) },
+		{ Vector3.new(0.4, 15.4, 1.4), Vector3.new(-12.2, 0, 0) },
+		{ Vector3.new(0.4, 15.4, 1.4), Vector3.new(12.2, 0, 0) },
 	}) do
-		neon({
-			Name = "BoardTrim",
-			Size = def[1],
-			CFrame = screen.CFrame * CFrame.new(def[2]),
-			Color = C.Gold,
-			CanCollide = false,
-			Parent = f,
-		})
+		trim(def[1], screen.CFrame * CFrame.new(def[2]), C.White, f)
 	end
 
 	local gui = Instance.new("SurfaceGui")
@@ -1055,7 +925,7 @@ local function buildLeaderboard(root)
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	gui.PixelsPerStud = 40
 	gui.LightInfluence = 0
-	gui.Brightness = 1.6
+	gui.Brightness = 1
 	gui.Parent = screen
 
 	local title = Instance.new("TextLabel")
@@ -1084,7 +954,7 @@ local function buildLeaderboard(root)
 		local row = Instance.new("Frame")
 		row.Name = "Row" .. i
 		row.LayoutOrder = i
-		row.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(22, 22, 32) or Color3.fromRGB(28, 28, 40)
+		row.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(26, 28, 34) or Color3.fromRGB(34, 36, 44)
 		row.BorderSizePixel = 0
 		row.Size = UDim2.new(1, 0, 0.09, 0)
 		row.Parent = entries
@@ -1125,30 +995,29 @@ local function buildLamps(root)
 		local pos = Vector3.new(math.cos(angle) * 62, 0, math.sin(angle) * 62)
 		part({
 			Name = "LampPost",
-			Size = Vector3.new(0.7, 11, 0.7),
+			Size = Vector3.new(0.6, 11, 0.6),
 			Position = pos + Vector3.new(0, 5.5, 0),
-			Color = C.Metal,
+			Color = C.Charcoal,
 			Material = Enum.Material.Metal,
 			Parent = f,
 		})
-		local color = NEON_CYCLE[(i % #NEON_CYCLE) + 1]
 		local head = ball(
-			1.8,
-			pos + Vector3.new(0, 11.6, 0),
-			{ Name = "LampHead", Color = color, Material = Enum.Material.Neon, CanCollide = false, Parent = f }
+			1.6,
+			pos + Vector3.new(0, 11.5, 0),
+			{ Name = "LampHead", Color = C.White, Material = Enum.Material.SmoothPlastic, CanCollide = false, Parent = f }
 		)
-		pointLight(head, color, 30, 1.6)
+		pointLight(head, WARM_LIGHT, 22, 0.6)
 	end
 end
 
 local function buildSkyline(root)
 	local f = folder("Skyline", root)
 	local rng = Random.new(7)
-	local grays = {
-		Color3.fromRGB(30, 30, 40),
-		Color3.fromRGB(38, 36, 50),
-		Color3.fromRGB(26, 28, 36),
-		Color3.fromRGB(44, 42, 58),
+	local shades = {
+		Color3.fromRGB(214, 214, 220),
+		Color3.fromRGB(228, 228, 232),
+		Color3.fromRGB(198, 200, 208),
+		Color3.fromRGB(236, 236, 240),
 	}
 	for i = 1, 40 do
 		local angle = (i / 40) * math.pi * 2 + rng:NextNumber(-0.05, 0.05)
@@ -1162,28 +1031,23 @@ local function buildSkyline(root)
 			Name = "Building",
 			Size = Vector3.new(w, h, d),
 			CFrame = cf,
-			Color = grays[rng:NextInteger(1, #grays)],
+			Color = shades[rng:NextInteger(1, #shades)],
 			Material = Enum.Material.Concrete,
 			Parent = f,
 		})
-		local accent = NEON_CYCLE[rng:NextInteger(1, #NEON_CYCLE)]
-		neon({
-			Name = "RoofNeon",
-			Size = Vector3.new(w + 0.4, 0.5, 0.6),
-			CFrame = cf * CFrame.new(0, h / 2 + 0.25, -d / 2),
-			Color = accent,
-			Transparency = 0.1,
-			CanCollide = false,
-			Parent = f,
-		})
-		for _, dx in ipairs({ -w * 0.28, w * 0.28 }) do
-			neon({
-				Name = "Window",
-				Size = Vector3.new(0.5, h * 0.7, 0.3),
-				CFrame = cf * CFrame.new(dx, 0, -d / 2 - 0.1),
-				Color = accent,
-				Transparency = 0.55,
+		-- Dark glass window bands
+		local bands = math.floor(h / 12)
+		for b = 1, bands do
+			local y = -h / 2 + b * 12 - 4
+			part({
+				Name = "WindowBand",
+				Size = Vector3.new(w * 0.86, 3.2, 0.25),
+				CFrame = cf * CFrame.new(0, y, -d / 2 - 0.1),
+				Color = Color3.fromRGB(60, 66, 80),
+				Material = Enum.Material.Glass,
+				Reflectance = 0.15,
 				CanCollide = false,
+				CastShadow = false,
 				Parent = f,
 			})
 		end

@@ -2,8 +2,8 @@
 
 A complete Roblox "mogging" progression game: earn Credits, buy upgrades to
 your Jawline / Hair / Physique / Aura / Fit, climb ten ranks from **NPC** to
-**Living Legend**, rebirth for permanent multipliers, and fight for the global
-top 10. Everything other players see about you (rank tag, aura particles) is
+**Living Legend**, challenge other players to **Mog Off** duels for their
+Credits, rebirth for permanent multipliers, and fight for the global top 10. Everything other players see about you (rank tag, aura particles) is
 driven by your real, saved score.
 
 ## Open it in Roblox Studio (no plugins needed)
@@ -20,13 +20,14 @@ driven by your real, saved score.
 ## What's in the game
 
 **Economy**
-- Every new player starts with **100 Credits**.
+- Every new player starts with **100 Credits**, plus a **daily bonus** of 100 Credits
+  that grows with your login streak (up to 5x).
 - **Credit Check kiosk** — every 3 minutes, the server recomputes your Mog Score
   from saved stats and pays out based on it. Because it verifies from the save,
   it can't be inflated by a tampered client.
 - **Gym** (barbell, pull-up bar, bench) — small payout every 4 seconds.
 - **Mirror** — bigger payout every 90 seconds, scales with score.
-- All gains are multiplied by your rebirth bonus.
+- All gains are multiplied by your rebirth bonus (and the 2x Credits pass).
 
 **Progression**
 - 5 stats with geometric cost curves (`Constants.STATS`).
@@ -34,26 +35,61 @@ driven by your real, saved score.
 - 10 cosmetic ranks with colors, shown over your head and on leaderboards.
 - Rebirth resets stats + credits back to 100 for a permanent +25% per rebirth.
 
+**Mog Off (player vs player)**
+- Walk up to anyone and press **E**, or use the **MOG OFF** menu, to challenge them.
+  Both put up a 50 Credit wager.
+- Accepting teleports both players onto the stage. 3 second countdown, then a
+  6 second **FLEX** phase where you spam click / tap / SPACE.
+- Power = (Mog Score + 10) × (1 + 1% per flex, up to +80%) × a small luck roll.
+  Winner takes the whole pot plus a bonus. Wins and losses show on your tag,
+  in the HUD, and in the Mog Off panel.
+- Leaving mid-battle counts as a forfeit.
+
+**Robux (Premium menu)**
+- Game passes: **2x Credits** (doubles all earnings) and **VIP** (gold tag, gold
+  aura, doubled daily bonus).
+- Credit packs: 500 / 2,500 / 10,000 / 50,000 Credits.
+- Purchases are idempotent (receipt IDs are saved) and are persisted before
+  Roblox is told the purchase went through.
+
 **World** (`MapBuilder.lua`)
-- Central plaza with fountain, neon rims, spawn pads, benches.
-- Mog Stage with colored spotlights and neon backdrop.
+- Clean showroom style: white marble plaza, light concrete, charcoal trims, warm
+  white lamps. The rebirth orb is the only glowing object.
+- Central plaza with fountain, benches, planters with trees, spawn pads.
+- Mog Off stage with two duel rings and soft stage lights.
 - Gym zone with rack, barbell, bench, pull-up bar, dumbbell rack.
 - 5 upgrade stalls (one per stat), Mirror, Credit Check kiosk, Rebirth altar.
 - Physical leaderboard screen updated live from the OrderedDataStore.
-- Procedural neon skyline around the whole thing; dusk lighting with bloom.
+- Light-gray skyline with dark glass window bands; soft daylight lighting.
 
 **UI** (all built in code, scales for mobile)
-- HUD card: animated Credits + Mog Score, rank badge, multiplier, progress to next rank.
+- HUD card: animated Credits + Mog Score, rank badge, multiplier, progress to
+  next rank, Mog Off record.
 - Cooldown pills for Credit Check and Mirror.
 - Shop panel with Buy 1 / Buy 10 per stat, live affordability.
+- Mog Off panel (challenge list), invite card, countdown / flex / result overlay.
+- Premium panel with live Robux prices.
 - Leaderboard panel, Rebirth panel with two-click confirm.
-- Toast notifications for every payout, error, and rank-up.
+- Toast notifications for every payout, error, rank-up, and battle result.
 
 **Safety**
 - Server-authoritative everything. The client only sends intents.
 - Per-remote rate limiting with auto-kick for spam (`AntiExploit.lua`).
 - DataStore saves with retry, autosave every 2 minutes, save on leave and on
   server shutdown, schema reconciliation for older saves.
+
+## Setting up Robux items
+
+1. Open your game on [create.roblox.com](https://create.roblox.com), go to
+   **Monetization**.
+2. Under **Passes**, create two passes (e.g. "2x Credits", "VIP"). Copy each ID.
+3. Under **Developer Products**, create four products for the credit packs. Copy
+   each ID.
+4. In Studio, open **ReplicatedStorage → Shared → Constants** and paste the IDs
+   into the `Id = 0` slots of `Constants.GAMEPASSES` and `Constants.PRODUCTS`.
+   (Or edit `src/ReplicatedStorage/Shared/Constants.lua` here and rebuild.)
+5. Publish. Buttons with `Id = 0` show a "not linked yet" message instead of a
+   purchase prompt, so nothing breaks while you set this up.
 
 ## Tuning
 
@@ -76,8 +112,8 @@ for live sync while editing scripts.
 ```
 default.project.json                 Rojo tree
 src/ReplicatedStorage/Shared/        Constants, Remotes, Signal (shared)
-src/ServerScriptService/Server/      Data, Credits, Stats, Rebirth, Leaderboard,
-                                     Presence (tags/aura), Interaction, Lighting, MapBuilder
+src/ServerScriptService/Server/      Data, Credits, Stats, Rebirth, Battle, Monetization,
+                                     Leaderboard, Presence, Interaction, Lighting, MapBuilder
 src/ServerScriptService/Main.server.lua   server boot order
 src/StarterPlayer/StarterPlayerScripts/Client/   Theme, UIBuilder, controllers
 src/StarterPlayer/StarterPlayerScripts/Main.client.lua   client boot

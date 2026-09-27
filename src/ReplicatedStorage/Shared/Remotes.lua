@@ -19,6 +19,10 @@ local EVENT_NAMES = {
 	"Notify", -- server -> client: {kind, title, message}
 	"LeaderboardUpdate", -- server -> client: {entries}
 	"OpenPanel", -- server -> client: {panelName, arg}
+	"BattleRequest", -- client -> server: {targetUserId}
+	"BattleRespond", -- client -> server: {requestId, accept}
+	"BattleFlex", -- client -> server: {}
+	"BattleState", -- server -> client: {Phase=..., ...}
 }
 
 local Remotes = {}

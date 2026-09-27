@@ -20,6 +20,13 @@ local DataService = {}
 
 DataService.ProfileLoaded = Signal.new() -- fires (player, profile)
 
+-- Other services can decorate the client snapshot: fn(player, snapshot).
+DataService.SnapshotExtras = {}
+
+function DataService.AddSnapshotExtra(fn)
+	table.insert(DataService.SnapshotExtras, fn)
+end
+
 local store = nil
 local profiles = {} -- [UserId] = profile
 local loadedFlags = {} -- [UserId] = true once loaded
@@ -47,6 +54,12 @@ local function buildTemplate()
 		FirstJoin = os.time(),
 		LastJoin = os.time(),
 		PlayTime = 0,
+		Wins = 0,
+		Losses = 0,
+		LastDailyDay = 0,
+		DailyStreak = 0,
+		Purchases = {},
+		RobuxSpent = 0,
 	}
 end
 
@@ -118,7 +131,7 @@ function DataService.Snapshot(player)
 	for statName, level in pairs(profile.Stats) do
 		stats[statName] = level
 	end
-	return {
+	local snapshot = {
 		Credits = profile.Credits,
 		Stats = stats,
 		MogScore = profile.MogScore,
@@ -129,8 +142,15 @@ function DataService.Snapshot(player)
 		LastGymRep = profile.LastGymRep,
 		LastRating = profile.LastRating,
 		PlayTime = profile.PlayTime,
+		Wins = profile.Wins or 0,
+		Losses = profile.Losses or 0,
+		DailyStreak = profile.DailyStreak or 0,
 		ServerTime = os.time(),
 	}
+	for _, fn in ipairs(DataService.SnapshotExtras) do
+		pcall(fn, player, snapshot)
+	end
+	return snapshot
 end
 
 -- Push a fresh snapshot to the client. Call after any mutation.

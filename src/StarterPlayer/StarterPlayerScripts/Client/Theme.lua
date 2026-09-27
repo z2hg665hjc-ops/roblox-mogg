@@ -13,22 +13,22 @@ Theme.Colors = {
 	Stroke = Color3.fromRGB(64, 64, 92),
 	Text = Color3.fromRGB(242, 242, 252),
 	TextDim = Color3.fromRGB(150, 150, 178),
-	Accent = Color3.fromRGB(175, 95, 255),
-	Accent2 = Color3.fromRGB(255, 70, 190),
-	Cyan = Color3.fromRGB(80, 220, 255),
-	Gold = Color3.fromRGB(255, 200, 60),
-	Green = Color3.fromRGB(90, 255, 150),
-	Red = Color3.fromRGB(255, 85, 95),
-	Orange = Color3.fromRGB(255, 120, 90),
+	Accent = Color3.fromRGB(150, 112, 220),
+	Accent2 = Color3.fromRGB(226, 116, 156),
+	Cyan = Color3.fromRGB(86, 186, 172),
+	Gold = Color3.fromRGB(214, 176, 84),
+	Green = Color3.fromRGB(88, 190, 122),
+	Red = Color3.fromRGB(226, 96, 96),
+	Orange = Color3.fromRGB(226, 130, 104),
 	Disabled = Color3.fromRGB(70, 70, 88),
 }
 
 Theme.StatColors = {
-	Jawline = Theme.Colors.Orange,
-	Hair = Theme.Colors.Gold,
-	Physique = Theme.Colors.Cyan,
-	Aura = Theme.Colors.Accent,
-	Fit = Theme.Colors.Accent2,
+	Jawline = Color3.fromRGB(226, 130, 104),
+	Hair = Color3.fromRGB(214, 176, 84),
+	Physique = Color3.fromRGB(104, 176, 220),
+	Aura = Color3.fromRGB(158, 122, 226),
+	Fit = Color3.fromRGB(226, 116, 156),
 }
 
 Theme.StatBlurbs = {

@@ -20,6 +20,8 @@ local NotificationController = require(Client:WaitForChild("NotificationControll
 local ShopController = require(Client:WaitForChild("ShopController"))
 local LeaderboardController = require(Client:WaitForChild("LeaderboardController"))
 local RebirthController = require(Client:WaitForChild("RebirthController"))
+local BattleController = require(Client:WaitForChild("BattleController"))
+local PremiumController = require(Client:WaitForChild("PremiumController"))
 local HudController = require(Client:WaitForChild("HudController"))
 
 -- No tools in this game, so hide the backpack.
@@ -63,13 +65,9 @@ NotificationController.Init(screenGui)
 ShopController.Init(screenGui)
 LeaderboardController.Init(screenGui)
 RebirthController.Init(screenGui)
+PremiumController.Init(screenGui)
 
-local panels = {
-	Shop = ShopController.Panel(),
-	Leaderboard = LeaderboardController.Panel(),
-	Rebirth = RebirthController.Panel(),
-}
-HudController.Init(screenGui, panels)
+local panels = {}
 
 local function closeOthers(keep)
 	for name, p in pairs(panels) do
@@ -78,6 +76,17 @@ local function closeOthers(keep)
 		end
 	end
 end
+
+BattleController.Init(screenGui, function()
+	closeOthers(nil)
+end)
+
+panels.Shop = ShopController.Panel()
+panels.Leaderboard = LeaderboardController.Panel()
+panels.Rebirth = RebirthController.Panel()
+panels.Battle = BattleController.Panel()
+panels.Premium = PremiumController.Panel()
+HudController.Init(screenGui, panels)
 
 Remotes.Get("OpenPanel").OnClientEvent:Connect(function(panelName, arg)
 	if panelName == "Shop" then
