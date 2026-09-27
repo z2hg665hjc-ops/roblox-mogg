@@ -492,7 +492,7 @@
     </button>
   </div>
 
-  <footer class="tip" id="tip"><strong>Drag back</strong> anywhere on the screen, then let go to hit</footer>
+  <footer class="tip" id="tip"><strong>Drag back</strong> anywhere on the screen, then let go to hit. No walls: the edge is the hazard</footer>
 
   <div class="overlay" id="overlay" hidden>
     <div class="card" role="dialog" aria-live="polite">
@@ -515,7 +515,7 @@
         <div class="logo-small">Pocket</div>
         <div class="logo-big">Golf</div>
       </div>
-      <p class="menu-sub">9 toy holes · chip · putt · bounce</p>
+      <p class="menu-sub">9 mountain holes · no walls</p>
     </div>
     <div class="menu-bottom">
       <div class="tap">Tap to play</div>
@@ -558,7 +558,7 @@
   const HOLE_R = 0.78;
   const MAX_DRAG = 150, MIN_DRAG = 12;
   const MAX_OVER_PAR = 5;
-  const CHIP = { angle: 50, min: 7, max: 27 };
+  const CHIP = { angle: 50, min: 7, max: 25 };
   const PUTT = { min: 3, max: 19 };
   const PLAT_THICK = 3.4;
   const WALL_H = 0.9, WALL_T = 0.5;
@@ -573,7 +573,7 @@
     sand: 0xf2dc9b, bumper: 0xff5a5f, bumperCap: 0xfff4f4, pad: 0xffb703, padRing: 0xfff1c9,
     flag: 0xff5a5f, pole: 0xffffff, cup: 0x1a2320, cupRim: 0xf5f5f0, cloud: 0xffffff,
     trunk: 0x8a5a36, leafA: 0x2f9e4f, leafB: 0x3fb75f, rock: 0x9aa3ad, bush: 0x49b563,
-    hill: 0x6fdc7a, ice: 0xbfe9ff, water: 0x3aa7e0, poolRim: 0x9ad8f8, launcher: 0x37c26f, arrow: 0xffffff, bar: 0xfff4d6, barEnd: 0xff5a5f,
+    hill: 0x6fdc7a, mountBase: 0x45b356, mountRock: 0x8e9aa6, mountSnow: 0xf4f8fb, ice: 0xbfe9ff, water: 0x3aa7e0, poolRim: 0x9ad8f8, launcher: 0x37c26f, arrow: 0xffffff, bar: 0xfff4d6, barEnd: 0xff5a5f,
     accent: 0xf5c84c, lime: '#b9f04a', amber: '#f5c84c', red: '#e5533d',
   };
 
@@ -581,50 +581,60 @@
   // Same-height platforms that overlap merge into one shape. "open" edges (n s e w) get no wall.
   // path: the route the camera follows, tee to hole.
   const HOLES = [
-    { name: 'First Bend', par: 2, tee: [4, 3], hole: [18, 13], hint: 'Drag back and let go. Roll over the hill to the flag',
-      plats: [{ r: [0, 0, 8, 16], e: 0 }, { r: [0, 10, 22, 16], e: 0 }],
-      path: [[4, 3], [4, 13], [18, 13]],
-      hills: [[12, 13, 2.6, 0.8]],
-      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'rock'], [1.5, 14.5, 'tree'], [21, 15, 'tree'], [21, 11, 'bush'], [12, 15.3, 'bush'], [6.6, 8, 'tree']] },
-    { name: 'Zigzag', par: 3, tee: [4, 3], hole: [18, 24], hint: 'Right, then up. The corner is icy',
-      plats: [{ r: [0, 0, 8, 12], e: 0 }, { r: [4, 8, 20, 14], e: 0 }, { r: [14, 12, 22, 28], e: 0 }],
-      path: [[4, 3], [4, 11], [18, 11], [18, 24]],
-      sand: [[14, 18, 17, 21]], ice: [[14, 12.5, 22, 16]],
-      deco: [[1.5, 10.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 1.5, 'tree'], [19, 9.5, 'rock'], [20.5, 26.5, 'tree'], [15.5, 26.5, 'bush'], [20.8, 20, 'tree'], [8, 13, 'tree']] },
-    { name: 'Gap Turn', par: 3, tee: [4, 3], hole: [17, 17], hint: 'Chip the gap, turn right, and mind the pond',
-      plats: [{ r: [0, 0, 8, 10], e: 0, open: 'n' }, { r: [0, 13, 8, 20], e: 0, open: 's' }, { r: [6, 14, 20, 20], e: 0 }],
-      path: [[4, 3], [4, 16], [17, 17]],
-      pools: [[11.5, 15.5, 1.5]],
-      deco: [[1.5, 18.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 8.5, 'rock'], [6.5, 19, 'tree'], [18.5, 15.2, 'rock'], [13, 19, 'tree'], [18.8, 19, 'bush']] },
-    { name: 'Snake', par: 4, tee: [4, 3], hole: [3, 25], hint: 'Up, right, up, left. Time the spinner',
-      plats: [{ r: [0, 0, 8, 10], e: 0 }, { r: [0, 8, 18, 14], e: 0 }, { r: [12, 12, 18, 24], e: 0 }, { r: [0, 22, 18, 28], e: 0 }],
-      path: [[4, 3], [4, 11], [15, 11], [15, 25], [3, 25]],
-      bumpers: [[9, 11]], sand: [[13, 17, 17, 19]], spinners: [[15, 21, 4.5, 1.6]], hills: [[9, 25, 2.4, 0.8]],
-      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'bush'], [1.5, 12.5, 'rock'], [6.5, 9, 'bush'], [16.5, 26.5, 'tree'], [13.5, 22.5, 'bush'], [1.5, 26.5, 'tree'], [13.2, 14.5, 'tree'], [16.8, 15, 'rock']] },
-    { name: 'Island Hop', par: 4, tee: [4, 3], hole: [6, 23], hint: 'Four islands. The green arrow launches you across',
-      plats: [{ r: [0, 0, 8, 8], e: 0 }, { r: [10, 5, 18, 13], e: 0 }, { r: [12, 15, 20, 23], e: 0 }, { r: [2, 19, 10, 27], e: 0 }],
-      path: [[4, 3], [14, 9], [16, 19], [6, 23]],
-      launchers: [[14, 11, 90]], pools: [[17.5, 17, 1.1]],
-      deco: [[1.5, 6.5, 'tree'], [6.5, 6.5, 'bush'], [1.5, 1.5, 'rock'], [16.5, 6.5, 'rock'], [11.5, 12, 'tree'], [18.5, 21.5, 'bush'], [13.5, 21.5, 'tree'], [3.5, 25.5, 'tree'], [8.5, 20.5, 'rock'], [3, 20.5, 'bush']] },
-    { name: 'Stairway', par: 4, tee: [4, 3], hole: [7, 25], hint: 'Every turn is a step up. The top floor is icy',
-      plats: [{ r: [0, 0, 8, 10], e: 0 }, { r: [6, 8, 18, 14], e: 1.3 }, { r: [14, 12, 20, 24], e: 2.6 }, { r: [4, 22, 20, 28], e: 3.9 }],
-      path: [[4, 3], [4, 11], [16, 11], [17, 25], [7, 25]],
-      ice: [[11, 23, 19, 27]],
-      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'rock'], [1.5, 8.5, 'bush'], [16.5, 9.5, 'rock'], [8, 13, 'tree'], [18.5, 26.5, 'tree'], [5.5, 23.5, 'bush'], [19, 14, 'bush'], [15, 22.5, 'rock']] },
-    { name: 'Pad Hop', par: 3, tee: [4, 2], hole: [17, 20], hint: 'Putt hard over the orange pad to launch up top',
-      plats: [{ r: [0, 0, 8, 10], e: 0, open: 'n' }, { r: [0, 15, 8, 21], e: 5, open: 's' }, { r: [6, 17, 20, 23], e: 5 }],
-      pads: [[4, 8]], pools: [[11, 20, 1.3]],
-      deco: [[1.5, 19.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 4, 'rock'], [6.5, 16, 'tree'], [18.5, 18.3, 'rock'], [13.5, 22, 'tree'], [18.8, 22, 'bush'], [1.5, 6.5, 'tree']] },
-    { name: 'Bumper Bend', par: 4, tee: [4, 3], hole: [18, 25], hint: 'Bumpers kick, the spinner sweeps. Pick your moment',
-      plats: [{ r: [0, 0, 8, 14], e: 0 }, { r: [0, 12, 20, 18], e: 0 }, { r: [14, 16, 22, 28], e: 0 }],
-      path: [[4, 3], [4, 15], [18, 15], [18, 25]],
-      bumpers: [[4, 8], [10, 15], [16, 14]], sand: [[14, 20, 18, 22]], spinners: [[18, 19, 4, -1.4]], hills: [[2.5, 15.2, 2.2, 0.7]],
-      deco: [[1.5, 1.5, 'tree'], [6.5, 1.5, 'bush'], [1.5, 11, 'rock'], [20.5, 26.5, 'tree'], [15.5, 26.5, 'bush'], [20.5, 13.5, 'bush'], [12, 13, 'tree'], [20.5, 23, 'rock'], [6.5, 11, 'tree']] },
-    { name: 'Grand Finale', par: 5, tee: [4, 3], hole: [7, 31], hint: 'A gap, a bend, a hill, a spinner, ice and a pond. Good luck',
-      plats: [{ r: [0, 0, 8, 8], e: 0, open: 'n' }, { r: [0, 11, 8, 17], e: 0, open: 's' }, { r: [6, 13, 22, 19], e: 0 }, { r: [16, 17, 22, 30], e: 2 }, { r: [4, 28, 22, 34], e: 2 }],
-      path: [[4, 3], [4, 14], [19, 15], [19, 31], [7, 31]],
-      bumpers: [[12, 16]], sand: [[16, 22, 22, 24]], spinners: [[19, 27, 4, 1.5]], ice: [[11, 29, 16, 33]], hills: [[19, 20.5, 2, 0.7]], pools: [[10, 31, 1.3]],
-      deco: [[1.5, 15.5, 'tree'], [1.5, 1.5, 'bush'], [6.5, 1.5, 'rock'], [6.5, 12.5, 'tree'], [20.5, 12.5, 'rock'], [20.5, 18.6, 'bush'], [20.5, 32.5, 'tree'], [5.5, 29.5, 'bush'], [20.8, 29.3, 'rock'], [5.5, 33, 'tree'], [14, 33, 'tree'], [20.6, 25, 'bush']] },
+    { name: 'First Bend', par: 3, tee: [4, 3], hole: [23, 14], hint: 'Two chips and a putt. Mountains keep the ball in, mostly',
+      plats: [{ r: [0, 0, 8, 16], e: 0 }, { r: [0, 10, 26, 18], e: 0 }],
+      path: [[4, 3], [4, 14], [23, 14]],
+      mounts: [[0, 8, 2.5, 5], [8, 4, 2.5, 4], [8, 18, 3, 5], [14, 10, 3.5, 6], [26, 14, 3, 7]],
+      hills: [[16, 15, 2.4, 0.7]],
+      deco: [[1.5, 1.5, 'tree'], [1.5, 15, 'tree'], [22, 17.2, 'tree'], [11, 17.2, 'bush'], [6.6, 10, 'rock'], [20, 11, 'bush']] },
+    { name: 'Zigzag', par: 4, tee: [4, 3], hole: [24, 31], hint: 'Right, then a long climb up. The last stretch is icy',
+      plats: [{ r: [0, 0, 8, 14], e: 0 }, { r: [4, 10, 26, 18], e: 0 }, { r: [20, 14, 28, 34], e: 0 }],
+      path: [[4, 3], [4, 14], [24, 14], [24, 31]],
+      mounts: [[0, 14, 3, 6], [26, 10, 3, 6], [28, 34, 3, 7], [20, 26, 2.5, 5], [14, 18, 2.5, 5], [8, 0, 2.5, 4], [20, 34, 2.5, 5]],
+      ice: [[20, 22, 28, 26]], sand: [[20, 27, 23, 29]],
+      deco: [[1.5, 12, 'tree'], [1.5, 1.5, 'bush'], [8, 16.5, 'tree'], [19, 11.5, 'rock'], [26.5, 30, 'tree'], [22, 20, 'bush'], [26.5, 20, 'tree']] },
+    { name: 'Gap Turn', par: 4, tee: [4, 3], hole: [27, 22], hint: 'Chip the gap, turn right, and steer round the pond',
+      plats: [{ r: [0, 0, 8, 12], e: 0 }, { r: [0, 15, 8, 24], e: 0 }, { r: [6, 18, 30, 26], e: 0 }],
+      path: [[4, 3], [4, 20], [27, 22]],
+      mounts: [[8, 24, 3, 6], [0, 24, 2.5, 5], [30, 22, 3.5, 7], [18, 26, 2.5, 5], [16, 18, 2.5, 5], [0, 4, 2.5, 4]],
+      pools: [[14, 21, 1.6]],
+      deco: [[1.5, 22, 'tree'], [6.5, 1.5, 'bush'], [6.5, 10, 'rock'], [6.5, 16.5, 'tree'], [24, 25, 'tree'], [22, 19.5, 'rock'], [10, 25, 'bush']] },
+    { name: 'Snake', par: 5, tee: [4, 3], hole: [3, 32], hint: 'Up, right, up, left. Time the spinner and mind the hill',
+      plats: [{ r: [0, 0, 8, 12], e: 0 }, { r: [0, 10, 20, 18], e: 0 }, { r: [14, 16, 20, 30], e: 0 }, { r: [0, 28, 20, 36], e: 0 }],
+      path: [[4, 3], [4, 14], [17, 14], [17, 32], [3, 32]],
+      mounts: [[20, 10, 3, 6], [0, 18, 3, 6], [20, 36, 3, 6], [0, 36, 3, 6], [14, 22, 2.5, 5], [10, 36, 2.5, 5], [8, 4, 2.5, 4], [0, 28, 2.5, 5]],
+      spinners: [[17, 24, 4, 1.5]], sand: [[14, 26, 20, 28]], hills: [[9, 32, 2.4, 0.8]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 12, 'bush'], [1.5, 12, 'rock'], [18.5, 20, 'tree'], [15, 34.5, 'tree'], [13, 30, 'bush'], [1.5, 34.5, 'tree'], [11, 16.5, 'rock']] },
+    { name: 'Island Hop', par: 5, tee: [4, 3], hole: [6, 31], hint: 'Four islands. The green arrow launches you to the last one',
+      plats: [{ r: [0, 0, 8, 8], e: 0 }, { r: [10, 6, 18, 14], e: 0 }, { r: [12, 18, 20, 26], e: 0 }, { r: [2, 26, 10, 34], e: 0 }],
+      path: [[4, 3], [14, 10], [16, 22], [6, 30]],
+      mounts: [[18, 6, 2.5, 5], [20, 14, 2.5, 5], [12, 18, 2.5, 5], [20, 26, 2.5, 5], [2, 34, 3, 6], [10, 34, 3, 6], [0, 8, 2, 4]],
+      launchers: [[14, 24, 135]], pools: [[17, 21, 1.2]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 6.5, 'bush'], [11.5, 8, 'rock'], [16.5, 12.5, 'tree'], [18.5, 24.5, 'bush'], [3.5, 28, 'tree'], [8.5, 28, 'rock'], [5, 33, 'bush']] },
+    { name: 'Stairway', par: 5, tee: [4, 3], hole: [9, 32], hint: 'Every turn is a step up. The third floor is icy',
+      plats: [{ r: [0, 0, 8, 12], e: 0 }, { r: [6, 10, 22, 18], e: 1.3 }, { r: [18, 16, 26, 30], e: 2.6 }, { r: [6, 28, 26, 36], e: 3.9 }],
+      path: [[4, 3], [4, 14], [20, 14], [22, 32], [9, 32]],
+      mounts: [[22, 10, 3, 6], [0, 12, 3, 6], [26, 36, 3, 6], [6, 36, 3, 6], [14, 18, 2.5, 5], [18, 22, 2.5, 5], [6, 30, 2.5, 5], [8, 2, 2.5, 4]],
+      ice: [[18, 24, 26, 28]],
+      deco: [[1.5, 1.5, 'tree'], [1.5, 9, 'bush'], [8, 16.5, 'tree'], [20, 11.5, 'rock'], [24.5, 34.5, 'tree'], [12, 34.5, 'bush'], [24.5, 20, 'rock'], [8, 29.5, 'tree']] },
+    { name: 'Pad Hop', par: 4, tee: [4, 2], hole: [27, 25], hint: 'Putt hard over the orange pad to launch up top, then head right',
+      plats: [{ r: [0, 0, 8, 12], e: 0 }, { r: [0, 17, 8, 25], e: 5 }, { r: [6, 21, 30, 29], e: 5 }],
+      path: [[4, 2], [4, 21], [27, 25]],
+      mounts: [[8, 25, 3, 6], [0, 25, 2.5, 5], [30, 25, 3.5, 7], [18, 29, 2.5, 5], [16, 21, 2.5, 5], [8, 12, 2.5, 5], [0, 6, 2, 4]],
+      pads: [[4, 10]], pools: [[14, 24, 1.5]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 4, 'rock'], [1.5, 19, 'tree'], [6.5, 23, 'bush'], [24, 28, 'tree'], [22, 22, 'rock'], [12, 27.5, 'bush']] },
+    { name: 'Bumper Bend', par: 5, tee: [4, 3], hole: [22, 35], hint: 'Bumpers kick, the spinner sweeps. Keep it on the grass',
+      plats: [{ r: [0, 0, 8, 16], e: 0 }, { r: [0, 14, 24, 22], e: 0 }, { r: [18, 20, 26, 38], e: 0 }],
+      path: [[4, 3], [4, 18], [22, 18], [22, 35]],
+      mounts: [[24, 14, 3, 6], [0, 22, 3, 6], [26, 38, 3, 7], [18, 38, 3, 6], [18, 30, 2.5, 5], [12, 22, 2.5, 5], [8, 8, 2.5, 5], [0, 2, 2, 4]],
+      bumpers: [[4, 9], [12, 18], [20, 16]], sand: [[18, 28, 22, 30]], spinners: [[22, 25, 4, -1.4]], hills: [[2.5, 18.2, 2.2, 0.7]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 13, 'bush'], [1.5, 13, 'rock'], [24.5, 36.5, 'tree'], [19.5, 36.5, 'bush'], [19.5, 22.5, 'rock'], [8, 20.5, 'tree'], [24.5, 24, 'tree']] },
+    { name: 'Grand Finale', par: 6, tee: [4, 3], hole: [9, 38], hint: 'A gap, a bend, a step, a spinner, ice and a pond. Good luck',
+      plats: [{ r: [0, 0, 8, 10], e: 0 }, { r: [0, 13, 8, 21], e: 0 }, { r: [6, 15, 26, 23], e: 0 }, { r: [20, 21, 26, 36], e: 2 }, { r: [6, 34, 26, 42], e: 2 }],
+      path: [[4, 3], [4, 17], [23, 19], [23, 37], [9, 38]],
+      mounts: [[26, 15, 3, 6], [0, 21, 3, 6], [26, 42, 3, 7], [6, 42, 3, 7], [20, 30, 2.5, 5], [16, 23, 2.5, 5], [14, 15, 2.5, 5], [6, 34, 2.5, 5], [0, 13, 2.5, 5], [8, 2, 2, 4]],
+      bumpers: [[14, 19]], sand: [[20, 26, 26, 28]], spinners: [[23, 31, 4, 1.5]], ice: [[13, 35, 18, 41]], hills: [[23, 24.5, 2, 0.7]], pools: [[13, 38, 1.3]],
+      deco: [[1.5, 1.5, 'tree'], [6.5, 8, 'rock'], [1.5, 19, 'tree'], [6.5, 14.5, 'bush'], [24.5, 40.5, 'tree'], [8, 36, 'bush'], [24.5, 22, 'rock'], [20, 36, 'bush'], [12, 41, 'tree'], [24.5, 34, 'rock']] },
   ];
   const TOTAL_PAR = HOLES.reduce((s, h) => s + h.par, 0);
   const DECO = { tree: { r: 0.75, bounce: 0.5 }, rock: { r: 0.7, bounce: 0.55 }, bush: { r: 0.8, bounce: 0.35 } };
@@ -693,6 +703,7 @@
     rock: new THREE.MeshToonMaterial({ color: PAL.rock }),
     bush: new THREE.MeshToonMaterial({ color: PAL.bush }),
     hill: new THREE.MeshToonMaterial({ color: PAL.hill }),
+    mount: new THREE.MeshToonMaterial({ vertexColors: true }),
     ice: new THREE.MeshToonMaterial({ color: PAL.ice }),
     water: new THREE.MeshToonMaterial({ color: PAL.water }),
     poolRim: new THREE.MeshToonMaterial({ color: PAL.poolRim }),
@@ -716,6 +727,41 @@
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx); g.computeVertexNormals();
     return g;
+  }
+  function mountainGeometry(rad, hgt, rings, segs, seed) {
+    const pos = [], col = [], idx = [];
+    const c = new THREE.Color();
+    for (let i = 0; i <= rings; i++) {
+      const u = i / rings;
+      const hh = hgt * Math.pow(1 - u, 1.5);
+      for (let j = 0; j < segs; j++) {
+        const jitter = i === 0 ? 1 : 1 + (hash2(j * 7 + seed, i * 13 + seed) - 0.5) * 0.22;
+        const r = rad * u * jitter;
+        const a = j / segs * Math.PI * 2;
+        const y = hh * (i === 0 ? 1 : 1 + (hash2(j * 3 + seed, i * 5) - 0.5) * 0.12);
+        pos.push(Math.cos(a) * r, y, Math.sin(a) * r);
+        const f = y / hgt;
+        if (f > 0.78) c.set(PAL.mountSnow); else if (f > 0.4) c.set(PAL.mountRock); else c.set(PAL.mountBase);
+        c.offsetHSL(0, 0, (hash2(i + seed, j) - 0.5) * 0.06);
+        col.push(c.r, c.g, c.b);
+      }
+    }
+    for (let i = 0; i < rings; i++) for (let j = 0; j < segs; j++) {
+      const a = i * segs + j, b = i * segs + (j + 1) % segs, cc = (i + 1) * segs + j, d = (i + 1) * segs + (j + 1) % segs;
+      idx.push(a, b, cc, b, d, cc);
+    }
+    let g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(idx);
+    g = g.toNonIndexed();
+    g.computeVertexNormals();
+    return g;
+  }
+  function hash2(a, b) {
+    let h = (a * 374761393 + b * 668265263) | 0;
+    h = (h ^ (h >>> 13)) * 1274126177;
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   }
   const arrowShape = new THREE.Shape();
   arrowShape.moveTo(-0.75, -0.2); arrowShape.lineTo(0.1, -0.2); arrowShape.lineTo(0.1, -0.55); arrowShape.lineTo(0.85, 0);
@@ -856,18 +902,13 @@
       const [x0, y0, x1, y1] = p.r;
       h.plats.push({ minX: x0, maxX: x1, minZ: mz(y1), maxZ: mz(y0), top: p.e, open: p.open || '' });
     }
-    for (const plat of h.plats) {
-      h.solids.push(box(plat.minX, plat.top - PLAT_THICK, plat.minZ, plat.maxX, plat.top, plat.maxZ));
-      edgeWalls(h, plat, 'x', plat.minZ, plat.minX, plat.maxX, -1, 'n');
-      edgeWalls(h, plat, 'x', plat.maxZ, plat.minX, plat.maxX, 1, 's');
-      edgeWalls(h, plat, 'z', plat.minX, plat.minZ, plat.maxZ, -1, 'w');
-      edgeWalls(h, plat, 'z', plat.maxX, plat.minZ, plat.maxZ, 1, 'e');
-    }
+    for (const plat of h.plats) h.solids.push(box(plat.minX, plat.top - PLAT_THICK, plat.minZ, plat.maxX, plat.top, plat.maxZ));
     for (const [x0, y0, x1, y1] of (def.sand || [])) h.sand.push({ minX: x0, maxX: x1, minZ: mz(y1), maxZ: mz(y0) });
     for (const [x, y] of (def.bumpers || [])) h.bumpers.push({ x, z: mz(y), r: 0.8, top: platTopAt(h, x, mz(y)), hit: -10 });
     for (const [x, y] of (def.pads || [])) h.pads.push({ x, z: mz(y), top: platTopAt(h, x, mz(y)), hit: -10 });
     for (const [x, y, kind] of (def.deco || [])) h.obstacles.push({ x, z: mz(y), kind, r: DECO[kind].r, bounce: DECO[kind].bounce, top: platTopAt(h, x, mz(y)) });
-    for (const [x, y, r, hh] of (def.hills || [])) h.hills.push({ x, z: mz(y), r, h: hh, top: platTopAt(h, x, mz(y)) });
+    for (const [x, y, r, hh] of (def.hills || [])) h.hills.push({ x, z: mz(y), r, h: hh, top: platTopAt(h, x, mz(y)), kind: 'hill' });
+    for (const [x, y, r, hh] of (def.mounts || [])) h.hills.push({ x, z: mz(y), r, h: hh, top: platTopAt(h, x, mz(y)), kind: 'mount' });
     for (const [x0, y0, x1, y1] of (def.ice || [])) h.ice.push({ minX: x0, maxX: x1, minZ: mz(y1), maxZ: mz(y0) });
     for (const [x, y, r] of (def.pools || [])) h.pools.push({ x, z: mz(y), r, top: platTopAt(h, x, mz(y)), phase: Math.random() });
     for (const [x, y, len, speed] of (def.spinners || [])) h.spinners.push({ x, z: mz(y), len, speed, phase: 0, top: platTopAt(h, x, mz(y)) });
@@ -896,7 +937,8 @@
       const trees = [];
       const nt = 1 + Math.floor(rnd() * 3);
       for (let t = 0; t < nt; t++) trees.push({ dx: (rnd() - 0.5) * sz * 0.7, dz: (rnd() - 0.5) * sz * 0.7, s: 0.8 + rnd() * 0.7 });
-      h.islets.push({ x, z, y: minY - 2 - rnd() * 6, sz, trees, hill: rnd() < 0.65 ? { r: sz * 0.42, h: 0.8 + rnd() * 1.2 } : null });
+      const mount = rnd() < 0.5;
+      h.islets.push({ x, z, y: minY - 2 - rnd() * 6, sz, trees, hill: rnd() < 0.8 ? { r: sz * 0.42, h: mount ? 3 + rnd() * 4 : 0.8 + rnd() * 1.2, mount } : null });
     }
     return h;
   }
@@ -965,10 +1007,12 @@
       const top = platTopAt(cur, (s.minX + s.maxX) / 2, (s.minZ + s.maxZ) / 2);
       meshBox(box(s.minX, top - 0.2, s.minZ, s.maxX, top + 0.02, s.maxZ), mat.ice, false, true);
     }
-    for (const m of cur.hills) {
-      const d = addMesh(new THREE.Mesh(domeGeometry(m.r, m.h, 8, 28), mat.hill), true, true);
+    cur.hills.forEach((m, i) => {
+      const d = m.kind === 'mount'
+        ? addMesh(new THREE.Mesh(mountainGeometry(m.r, m.h, 6, 14, i * 17 + game.holeIndex), mat.mount), true, true)
+        : addMesh(new THREE.Mesh(domeGeometry(m.r, m.h, 8, 28), mat.hill), true, true);
       d.position.set(m.x, m.top + 0.01, m.z);
-    }
+    });
     for (const pl of cur.pools) {
       const rim = addMesh(new THREE.Mesh(new THREE.CircleGeometry(pl.r + 0.35, 32), mat.poolRim)); rim.rotation.x = -Math.PI / 2; rim.position.set(pl.x, pl.top + 0.02, pl.z);
       const w = addMesh(new THREE.Mesh(new THREE.CircleGeometry(pl.r, 32), mat.water), false, true); w.rotation.x = -Math.PI / 2; w.position.set(pl.x, pl.top + 0.035, pl.z);
@@ -990,9 +1034,10 @@
     for (const is of cur.islets) {
       meshBox(box(is.x - is.sz / 2, is.y - 2.6, is.z - is.sz / 2, is.x + is.sz / 2, is.y - 0.3, is.z + is.sz / 2), mat.dirt, false, false);
       meshBox(box(is.x - is.sz / 2 - 0.1, is.y - 0.3, is.z - is.sz / 2 - 0.1, is.x + is.sz / 2 + 0.1, is.y, is.z + is.sz / 2 + 0.1), mat.turfSide, false, true);
-      if (is.hill) { const d = addMesh(new THREE.Mesh(domeGeometry(is.hill.r, is.hill.h, 6, 20), mat.hill), false, true); d.position.set(is.x, is.y + 0.01, is.z); }
+      if (is.hill) { const d = is.hill.mount ? addMesh(new THREE.Mesh(mountainGeometry(is.hill.r, is.hill.h, 5, 12, Math.round(is.x * 3 + is.z)), mat.mount), false, true) : addMesh(new THREE.Mesh(domeGeometry(is.hill.r, is.hill.h, 6, 20), mat.hill), false, true); d.position.set(is.x, is.y + 0.01, is.z); }
       for (const t of is.trees) {
-        const hb = is.hill ? is.hill.h * Math.pow(Math.max(0, 1 - (Math.hypot(t.dx, t.dz) / is.hill.r) ** 2), 2) : 0;
+        const uu = is.hill ? Math.min(1, Math.hypot(t.dx, t.dz) / is.hill.r) : 1;
+        const hb = !is.hill ? 0 : is.hill.mount ? is.hill.h * Math.pow(1 - uu, 1.5) * 0.9 : is.hill.h * Math.pow(1 - uu * uu, 2);
         const tx = is.x + t.dx, tz = is.z + t.dz, ty = is.y + hb;
         const tr = addMesh(new THREE.Mesh(geo.trunk, mat.trunk), false, false); tr.position.set(tx, ty + 0.6 * t.s, tz); tr.scale.setScalar(t.s);
         const la = addMesh(new THREE.Mesh(geo.leafA, mat.leafA), false, false); la.position.set(tx, ty + 1.9 * t.s, tz); la.scale.setScalar(t.s);
@@ -1049,6 +1094,10 @@
   function cameraFloor(x, z) {
     let top = -Infinity;
     for (const s of cur.solids) if (x >= s.minX - 0.5 && x <= s.maxX + 0.5 && z >= s.minZ - 0.5 && z <= s.maxZ + 0.5) top = Math.max(top, s.maxY);
+    for (const m of cur.hills) {
+      const d = Math.hypot(x - m.x, z - m.z);
+      if (d < m.r) { const u = d / m.r; const hh = m.kind === 'mount' ? m.h * Math.pow(1 - u, 1.5) : m.h * Math.pow(1 - u * u, 2); top = Math.max(top, m.top + hh); }
+    }
     return top;
   }
   function aimPose(out, fx, fz, zoom) {
@@ -1229,6 +1278,7 @@
     const s = Math.min(sx, sz);
     const ox = (W - (b.maxX - b.minX) * s) / 2, oz = (H - (b.maxZ - b.minZ) * s) / 2;
     const X = (x) => ox + (x - b.minX) * s, Z = (z) => oz + (z - b.minZ) * s;
+    g.save(); g.beginPath(); g.rect(0, 0, W, H); g.clip();
     for (const p of cur.plats) {
       const t = (p.top - b.minY - PLAT_THICK) / 8;
       g.fillStyle = `hsl(125, 55%, ${44 + t * 18}%)`;
@@ -1238,8 +1288,11 @@
     for (const sd of cur.sand) g.fillRect(X(sd.minX), Z(sd.minZ), (sd.maxX - sd.minX) * s, (sd.maxZ - sd.minZ) * s);
     g.fillStyle = '#bfe9ff';
     for (const ic of cur.ice) g.fillRect(X(ic.minX), Z(ic.minZ), (ic.maxX - ic.minX) * s, (ic.maxZ - ic.minZ) * s);
-    g.fillStyle = '#7fe08a';
-    for (const m of cur.hills) { g.beginPath(); g.arc(X(m.x), Z(m.z), m.r * s, 0, Math.PI * 2); g.fill(); }
+    for (const m of cur.hills) {
+      g.fillStyle = m.kind === 'mount' ? '#8e9aa6' : '#7fe08a';
+      g.beginPath(); g.arc(X(m.x), Z(m.z), m.r * s, 0, Math.PI * 2); g.fill();
+      if (m.kind === 'mount') { g.fillStyle = '#f4f8fb'; g.beginPath(); g.arc(X(m.x), Z(m.z), m.r * s * 0.35, 0, Math.PI * 2); g.fill(); }
+    }
     g.fillStyle = '#3aa7e0';
     for (const pl of cur.pools) { g.beginPath(); g.arc(X(pl.x), Z(pl.z), pl.r * s, 0, Math.PI * 2); g.fill(); }
     g.strokeStyle = '#fff4d6'; g.lineWidth = 2;
@@ -1255,6 +1308,7 @@
     g.fillStyle = '#ff5a5f'; g.beginPath(); g.moveTo(X(cur.hx), Z(cur.hz) - 7); g.lineTo(X(cur.hx) + 5, Z(cur.hz) - 5.5); g.lineTo(X(cur.hx), Z(cur.hz) - 4); g.fill();
     g.fillStyle = '#ffffff'; g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1;
     g.beginPath(); g.arc(X(ball.x), Z(ball.z), 2.6, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.restore();
   }
 
   // ---------- audio and haptics ----------
@@ -1451,15 +1505,20 @@
     return best;
   }
   let lastWallSound = 0;
-  const _mh = { h: 0, gx: 0, gz: 0 };
+  const _mh = { h: 0, gx: 0, gz: 0, base: 0, kind: '' };
   function moundAt(x, z) {
-    _mh.h = 0; _mh.gx = 0; _mh.gz = 0;
+    _mh.h = 0; _mh.gx = 0; _mh.gz = 0; _mh.base = -Infinity; _mh.kind = '';
+    let bestH = 0;
     for (const m of cur.hills) {
       const dx = x - m.x, dz = z - m.z, d = Math.hypot(dx, dz);
       if (d >= m.r) continue;
-      const u = d / m.r, q = 1 - u * u;
-      _mh.h += m.h * q * q;
-      if (d > 1e-6) { const dh = -4 * m.h * u * q / m.r; _mh.gx += dh * dx / d; _mh.gz += dh * dz / d; }
+      const u = d / m.r;
+      let hh, dh;
+      if (m.kind === 'mount') { const q = 1 - u; hh = m.h * Math.pow(q, 1.5); dh = -1.5 * m.h * Math.sqrt(q) / m.r; }
+      else { const q = 1 - u * u; hh = m.h * q * q; dh = -4 * m.h * u * q / m.r; }
+      _mh.h += hh;
+      if (d > 1e-6) { _mh.gx += dh * dx / d; _mh.gz += dh * dz / d; }
+      if (hh > bestH) { bestH = hh; _mh.base = m.top; _mh.kind = m.kind; }
     }
     return _mh;
   }
@@ -1594,8 +1653,8 @@
     if (!b.grounded && b.vy <= 0) {
       // landing on a hill, which rises above the flat platform top
       const m = moundAt(b.x, b.z);
-      if (m.h > 0.01) {
-        const gh = platTopAt(cur, b.x, b.z) + m.h;
+      if (m.h > 0.01 && m.base !== -Infinity) {
+        const gh = m.base + m.h;
         if (b.y - R <= gh) {
           b.y = gh + R;
           const nl = Math.hypot(m.gx, 1, m.gz);
@@ -1603,10 +1662,13 @@
           const vn = b.vx * nx + b.vy * ny + b.vz * nz;
           if (vn < 0) {
             const P = SURF[surfaceAt(b.x, b.z)];
+            // rock faces soak up the hit so the ball drops at the foot of the mountain instead of ricocheting
+            const rocky = m.kind === 'mount';
+            const grip = rocky ? 0.45 : P.grip, bounce = rocky ? 0.2 : P.bounce;
             const tx = b.vx - vn * nx, ty = b.vy - vn * ny, tz = b.vz - vn * nz;
-            b.vx = tx * P.grip - vn * nx * P.bounce; b.vy = ty * P.grip - vn * ny * P.bounce; b.vz = tz * P.grip - vn * nz * P.bounce;
+            b.vx = tx * grip - vn * nx * bounce; b.vy = ty * grip - vn * ny * bounce; b.vz = tz * grip - vn * nz * bounce;
             if (b.vy < 2.2) { b.vy = 0; b.grounded = true; }
-            if (live && !b.wasGrounded) onLand(b, -vn, P);
+            if (live && !b.wasGrounded) { onLand(b, -vn, P); if (rocky) { sfx.tree(); spawn(b.x, b.y, b.z, { n: 8, speed: 3, up: 3, life: 0.4, size: 0.14, colors: [0x8e9aa6, 0xf4f8fb] }); } }
           }
         }
       }
@@ -1758,15 +1820,15 @@
     const col = powerColor(p);
     dotMat.color.copy(col);
     dots.visible = n > 0;
-    const sup = supportBelow(lx, lz, ly + 0.5, 3);
-    landRing.visible = sup !== null;
-    if (sup !== null) landRing.position.set(lx, sup + 0.06, lz);
+    const safe = endEv !== 'fall' && endEv !== 'water' && (landed || endEv === 'stop' || endEv === 'sink' || !ended);
+    landRing.visible = safe;
+    if (safe) landRing.position.set(lx, ly - R + 0.06, lz);
     landRing.material.color.copy(col);
     powerEl.classList.add('on'); carryEl.classList.add('on');
     powerFill.style.height = `${Math.round(p * 100)}%`;
     powerFill.style.background = '#' + col.getHexString();
     const dist = Math.round(Math.hypot(lx - ball.x, lz - ball.z));
-    carryEl.innerHTML = endEv === 'water' ? `<small>Splash</small>` : sup === null ? `<small>Off the edge</small>` : `${dist}<small> m ${chip ? 'carry' : 'roll'}</small>`;
+    carryEl.innerHTML = endEv === 'water' ? `<small>Splash</small>` : !safe ? `<small>Off the edge</small>` : `${dist}<small> m ${chip ? 'carry' : 'roll'}</small>`;
   }
 
   // ---------- scoring ----------
