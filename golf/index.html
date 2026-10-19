@@ -54,6 +54,9 @@
     width: 100%;
     overflow: hidden;
     max-width: 560px;
+  }
+  :root:fullscreen .app, :fullscreen .app { max-width: min(100vw, calc(100vh * 0.62)); }
+    .app {
     margin: 0 auto;
     padding-inline: 16px;
     display: flex;
@@ -577,6 +580,9 @@
       <button class="icon-btn" id="btnRestart" type="button" aria-label="Restart this hole">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v5h5"/></svg>
       </button>
+      <button class="icon-btn" id="btnFull" type="button" aria-label="Fullscreen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
       <button class="icon-btn" id="btnHome" type="button" aria-label="Pause and menu">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
       </button>
@@ -661,6 +667,7 @@
       <div class="me"><img id="meAvatar" alt="" hidden><span class="nm" id="meName">Player</span></div>
       <span class="menu-chip coins"><span class="coin"></span><strong id="coinCount">0</strong></span>
       <button class="menu-chip" id="menuSound" type="button">Sound on</button>
+      <button class="menu-chip" id="menuFull" type="button" aria-label="Fullscreen">⛶</button>
     </div>
     <div class="menu-pages">
       <section class="page page-play on" id="pagePlay">
@@ -735,6 +742,7 @@
   const ov = { eyebrow: $('ovEyebrow'), title: $('ovTitle'), sub: $('ovSub'), body: $('ovBody'), btn: $('ovBtn') };
   const btnSound = $('btnSound');
   const btnRestart = $('btnRestart');
+  const btnFull = $('btnFull'), menuFull = $('menuFull');
   const btnHome = $('btnHome'), pauseEl = $('pause'), pauseEyebrow = $('pauseEyebrow'), pauseResume = $('pauseResume'), pauseMenu = $('pauseMenu'), menuRestart = $('menuRestart'), btnStartOver = $('btnStartOver');
   const btnBoard = $('btnBoard'), boardEl = $('board'), boardTable = $('boardTable'), boardRound = $('boardRound'), boardBest = $('boardBest'), boardStarCount = $('boardStarCount'), boardStars = $('boardStars'), boardClose = $('boardClose');
   const btnUndo = $('btnUndo'), undoDesc = $('undoDesc');
@@ -1935,6 +1943,18 @@
     menuRestart.hidden = !inRound;
     renderLobby();
   }
+  function toggleFull() {
+    try {
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) { const r = req.call(el, { navigationUI: 'hide' }); if (r && r.catch) r.catch(() => toast('<strong>Fullscreen is not allowed here.</strong> Press F11 in your browser instead', 2600)); }
+      else toast('<strong>Fullscreen is not available here.</strong> Press F11 in your browser instead', 2600);
+    } catch (e) { toast('<strong>Fullscreen is not available here.</strong> Press F11 in your browser instead', 2600); }
+  }
+  btnFull.addEventListener('click', toggleFull);
+  menuFull.addEventListener('click', (e) => { e.stopPropagation(); toggleFull(); });
+  if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) { btnFull.hidden = true; menuFull.hidden = true; }
   btnStartOver.addEventListener('click', () => { initAudio(); game.scores = []; game.stars = []; game.shots = 0; showMenu(0); });
   btnHome.addEventListener('click', () => {
     if (game.state === 'menu' || game.state === 'courseDone') return;
