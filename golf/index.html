@@ -384,6 +384,7 @@
   .menu-chip strong { color: var(--accent); font-size: 14px; }
   button.menu-chip { cursor: pointer; }
   .menu-center { text-align: center; pointer-events: none; }
+  .menu-center .tap { pointer-events: auto; }
   .logo { display: inline-flex; flex-direction: column; align-items: center; animation: logoIn .9s cubic-bezier(.2, .9, .3, 1.15) both; }
   .logo-ball {
     width: 74px; height: 74px; border-radius: 50%;
@@ -409,7 +410,7 @@
     text-shadow: 0 6px 0 var(--accent-shade), 0 12px 24px rgba(0, 0, 0, .45);
   }
   .menu-sub { margin: 14px 0 0; font: 800 13px var(--body); letter-spacing: .12em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .4); }
-  .menu-bottom { text-align: center; pointer-events: none; }
+  .menu-bottom { text-align: center; }
   .tap {
     display: inline-block;
     min-width: 220px;
@@ -424,6 +425,68 @@
   .menu-foot { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
   .app.in-menu .hud, .app.in-menu .clubs, .app.in-menu .tip, .app.in-menu .pin, .app.in-menu .mini { opacity: 0; transition: opacity .4s; }
   .hud, .clubs, .tip, .pin, .mini { transition: opacity .5s .3s; }
+  /* lobby tabs */
+  .menu { padding: 14px 16px 0; }
+  .menu-pages { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .page { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .page.on { display: flex; }
+  .page-play { justify-content: space-between; padding-bottom: 10px; }
+  .page-scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 10px; padding-bottom: 10px; -webkit-overflow-scrolling: touch; }
+  .page h3 { font-family: var(--display); font-weight: 400; font-size: 28px; margin: 6px 0 2px; color: #fff; text-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+  .page .sub { margin: 0 0 10px; color: rgba(255, 255, 255, .78); font-size: 13px; }
+  .panel { background: rgba(10, 24, 16, .72); border: 1px solid rgba(255, 255, 255, .12); border-radius: 16px; padding: 12px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .panel + .panel { margin-top: 10px; }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px;
+    margin: 8px -16px 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: rgba(8, 18, 12, .92); border-top: 1px solid rgba(255, 255, 255, .12);
+  }
+  .tab {
+    border: 0; background: transparent; color: rgba(255, 255, 255, .6);
+    border-radius: 12px; padding: 6px 2px 5px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font: 800 10px var(--body); letter-spacing: .06em; text-transform: uppercase;
+  }
+  .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tab[aria-selected="true"] { color: var(--accent-ink); background: var(--accent); box-shadow: 0 3px 0 var(--accent-shade); }
+  .tab .badge { position: absolute; }
+  .coins { display: inline-flex; align-items: center; gap: 6px; }
+  .coin { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1a8, #f5c84c 55%, #b8912a); box-shadow: 0 1px 0 rgba(0, 0, 0, .4); display: inline-block; }
+  .coin.big { width: 22px; height: 22px; }
+  .me { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .me img { width: 28px; height: 28px; border-radius: 50%; background: #2a4a33; }
+  .me .nm { font: 800 13px var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .skin { background: rgba(10, 24, 16, .72); border: 1px solid rgba(255, 255, 255, .12); border-radius: 14px; padding: 10px 8px 9px; text-align: center; cursor: pointer; color: var(--ink); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .skin canvas { width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 6px 0 rgba(0, 0, 0, .3), inset -6px -8px 14px rgba(0, 0, 0, .25); }
+  .skin .nm { font: 800 12px var(--body); }
+  .skin .pr { font: 800 11px var(--body); color: var(--accent); display: inline-flex; align-items: center; gap: 4px; }
+  .skin .pr .coin { width: 11px; height: 11px; }
+  .skin.owned .pr { color: var(--muted); }
+  .skin.equipped { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .skin.locked { opacity: .9; }
+  .skin:disabled { cursor: default; }
+  .gift { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .gift .btn { width: auto; min-height: 42px; padding: 0 16px; font-size: 16px; }
+  .btn:disabled { opacity: .45; box-shadow: none; transform: none; cursor: default; }
+  .lb { list-style: none; margin: 0; padding: 0; }
+  .lb li { display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 8px 4px; border-top: 1px solid rgba(255, 255, 255, .08); }
+  .lb li:first-child { border-top: 0; }
+  .lb li.empty { display: block; padding: 4px 2px; }
+  .lb .rk { font-family: var(--display); font-size: 16px; color: var(--muted); }
+  .lb .rk.top { color: var(--accent); }
+  .lb img { width: 30px; height: 30px; border-radius: 50%; background: #2a4a33; }
+  .lb .nm { font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb .nm small { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .lb .st { color: var(--accent); font-size: 12px; }
+  .lb .bs { font-family: var(--display); font-size: 18px; font-variant-numeric: tabular-nums; }
+  .lb li.me-row { background: rgba(245, 200, 76, .1); border-radius: 10px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stat-grid div { background: rgba(10, 24, 16, .72); border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; padding: 8px 10px; }
+  .stat-grid .l { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .stat-grid .v { font-family: var(--display); font-size: 22px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .menu .board-table th { background: rgba(10, 24, 16, .95); }
+  .empty { color: var(--muted); font-size: 13px; margin: 6px 0; }
   @keyframes tapPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
   @keyframes logoIn { from { transform: scale(.6) translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .tap { animation: none; } .logo { animation: none; } }
@@ -582,21 +645,56 @@
 
   <div class="menu" id="menu">
     <div class="menu-top">
-      <span class="menu-chip" id="menuBest">Par 56 <strong>12 holes</strong></span>
+      <div class="me"><img id="meAvatar" alt="" hidden><span class="nm" id="meName">Player</span></div>
+      <span class="menu-chip coins"><span class="coin"></span><strong id="coinCount">0</strong></span>
       <button class="menu-chip" id="menuSound" type="button">Sound on</button>
     </div>
-    <div class="menu-center">
-      <div class="logo">
-        <div class="logo-ball" aria-hidden="true"></div>
-        <div class="logo-small">Pocket</div>
-        <div class="logo-big">Golf</div>
-      </div>
-      <p class="menu-sub">12 holes · meadow, forest, autumn, alpine</p>
+    <div class="menu-pages">
+      <section class="page page-play on" id="pagePlay">
+        <div></div>
+        <div class="menu-center">
+          <div class="logo">
+            <div class="logo-ball" id="logoBall" aria-hidden="true"></div>
+            <div class="logo-small">Pocket</div>
+            <div class="logo-big">Golf</div>
+          </div>
+          <p class="menu-sub">12 holes · meadow, forest, autumn, alpine</p>
+        </div>
+        <div class="menu-bottom">
+          <button class="tap" id="btnPlay" type="button">Tap to play</button>
+          <p class="menu-foot" id="menuBest">Par 56 · 12 holes</p>
+        </div>
+      </section>
+      <section class="page" id="pageSkins">
+        <h3>Ball skins</h3><p class="sub">Tap a ball to equip it. Locked balls are in the shop.</p>
+        <div class="page-scroll"><div class="grid" id="skinGrid"></div></div>
+      </section>
+      <section class="page" id="pageShop">
+        <h3>Shop</h3><p class="sub">Earn coins by finishing holes. Under par pays best.</p>
+        <div class="page-scroll">
+          <div class="panel gift"><div><strong>Daily gift</strong><div class="empty" id="giftText">150 coins, once a day</div></div><button class="btn" id="btnGift" type="button">Claim</button></div>
+          <div class="grid" id="shopGrid" style="margin-top:10px"></div>
+        </div>
+      </section>
+      <section class="page" id="pageFriends">
+        <h3>Friends</h3><p class="sub" id="friendsSub">Everyone who plays this link, ranked by stars.</p>
+        <div class="page-scroll"><div class="panel"><ul class="lb" id="lbList"><li class="empty">Loading…</li></ul></div></div>
+      </section>
+      <section class="page" id="pageStats">
+        <h3>Stats</h3><p class="sub">Your career on this course.</p>
+        <div class="page-scroll">
+          <div class="stat-grid" id="statGrid"></div>
+          <div class="panel" style="margin-top:10px;padding:0;overflow:hidden"><table class="board-table" id="statTable"></table></div>
+        </div>
+      </section>
     </div>
-    <div class="menu-bottom">
-      <div class="tap">Tap to play</div>
-      <p class="menu-foot">Drag back anywhere to hit the ball</p>
-    </div>
+    <nav class="tabbar" role="tablist">
+      <button class="tab" role="tab" data-tab="pagePlay" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg>Play</button>
+      <button class="tab" role="tab" data-tab="pageSkins" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="10" r="1.2"/><circle cx="11" cy="15" r="1.2"/></svg>Skins</button>
+      <button class="tab" role="tab" data-tab="pageShop" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1.5 11h-13z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg>Shop</button>
+      <button class="tab" role="tab" data-tab="pageFriends" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 20a5 5 0 0 1 6 0"/></svg>Friends</button>
+      <button class="tab" role="tab" data-tab="pageStats" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Stats</button>
+    </nav>
   </div>
 </div>
 
@@ -618,6 +716,7 @@
   const popsEl = $('pops'), holeTitle = $('holeTitle'), holeTitleName = $('holeTitleName'), holeTitleSub = $('holeTitleSub');
   const modeBtns = { chip: $('modeChip'), putt: $('modePutt') };
   const appEl = $('app'), menuEl = $('menu'), menuBest = $('menuBest'), menuSound = $('menuSound');
+  const coinCount = $('coinCount'), btnPlay = $('btnPlay'), skinGrid = $('skinGrid'), shopGrid = $('shopGrid'), btnGift = $('btnGift'), giftText = $('giftText'), lbList = $('lbList'), friendsSub = $('friendsSub'), statGrid = $('statGrid'), statTable = $('statTable'), meAvatar = $('meAvatar'), meName = $('meName'), logoBall = $('logoBall');
   const overlay = $('overlay');
   const ov = { eyebrow: $('ovEyebrow'), title: $('ovTitle'), sub: $('ovSub'), body: $('ovBody'), btn: $('ovBtn') };
   const btnSound = $('btnSound');
@@ -830,14 +929,24 @@
     if (!texCache[name]) { const T = THEMES[name]; texCache[name] = { grass: grassTexture(T), green: greenTexture(T), dirt: dirtTexture(T) }; }
     return texCache[name];
   }
-  const ballTex = (() => {
-    const c = document.createElement('canvas'); c.width = 128; c.height = 64;
-    const g = c.getContext('2d');
-    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 128, 64);
-    g.fillStyle = '#ff5a5f';
-    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) { g.beginPath(); g.arc(11 + i * 21 + (j % 2) * 10, 11 + j * 21, 4.5, 0, Math.PI * 2); g.fill(); }
-    return new THREE.CanvasTexture(c);
-  })();
+  // ---------- ball skins ----------
+  function skinDots(g, W, H, color, r) { g.fillStyle = color; for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) { g.beginPath(); g.arc(W / 12 + i * W / 6 + (j % 2) * W / 12, H / 6 + j * H / 3, r, 0, Math.PI * 2); g.fill(); } }
+  const SKINS = [
+    { id: 'classic', name: 'Classic', price: 0, draw(g, W, H) { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); skinDots(g, W, H, '#ff5a5f', W * 0.035); } },
+    { id: 'sky', name: 'Sky', price: 0, draw(g, W, H) { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); skinDots(g, W, H, '#3a9ad9', W * 0.035); } },
+    { id: 'stripes', name: 'Stripes', price: 150, draw(g, W, H) { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#2b2d42'; for (let i = 0; i < 8; i++) g.fillRect(i * W / 8, 0, W / 16, H); } },
+    { id: 'checker', name: 'Checker', price: 200, draw(g, W, H) { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#111'; for (let i = 0; i < 8; i++) for (let j = 0; j < 4; j++) if ((i + j) % 2) g.fillRect(i * W / 8, j * H / 4, W / 8, H / 4); } },
+    { id: 'soccer', name: 'Soccer', price: 250, draw(g, W, H) { g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, W, H); g.fillStyle = '#1a1a1a'; for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) { const x = W / 10 + i * W / 5 + (j % 2) * W / 10, y = H / 6 + j * H / 3; g.beginPath(); for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * Math.PI * 2 / 5; g.lineTo(x + Math.cos(a) * W * 0.045, y + Math.sin(a) * W * 0.045); } g.closePath(); g.fill(); } } },
+    { id: 'melon', name: 'Melon', price: 300, draw(g, W, H) { g.fillStyle = '#ff6b81'; g.fillRect(0, 0, W, H); g.fillStyle = '#2f8f3a'; g.fillRect(0, 0, W, H * 0.16); g.fillRect(0, H * 0.84, W, H * 0.16); skinDots(g, W, H, '#1a1a1a', W * 0.02); } },
+    { id: 'rainbow', name: 'Rainbow', price: 350, draw(g, W, H) { const cols = ['#ff5a5f', '#ff9f43', '#f5c84c', '#4fc45f', '#3a9ad9', '#8e6cf0']; cols.forEach((c, i) => { g.fillStyle = c; g.fillRect(0, i * H / 6, W, H / 6 + 1); }); } },
+    { id: 'lava', name: 'Lava', price: 400, draw(g, W, H) { g.fillStyle = '#1a0a08'; g.fillRect(0, 0, W, H); const rnd = lcg(7); for (let i = 0; i < 160; i++) { g.fillStyle = rnd() < 0.5 ? '#ff6a1a' : '#ffb347'; g.globalAlpha = 0.5 + rnd() * 0.5; g.beginPath(); g.arc(rnd() * W, rnd() * H, 1 + rnd() * W * 0.03, 0, Math.PI * 2); g.fill(); } g.globalAlpha = 1; } },
+    { id: 'galaxy', name: 'Galaxy', price: 500, draw(g, W, H) { const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#1b1446'); gr.addColorStop(0.5, '#3a1d6e'); gr.addColorStop(1, '#0d2a4a'); g.fillStyle = gr; g.fillRect(0, 0, W, H); const rnd = lcg(3); for (let i = 0; i < 140; i++) { g.fillStyle = rnd() < 0.2 ? '#ffd6f5' : '#fff'; g.globalAlpha = 0.4 + rnd() * 0.6; const r = rnd() * W * 0.012 + 0.6; g.beginPath(); g.arc(rnd() * W, rnd() * H, r, 0, Math.PI * 2); g.fill(); } g.globalAlpha = 1; } },
+    { id: 'eye', name: 'Eyeball', price: 600, draw(g, W, H) { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.strokeStyle = '#e05a5a'; g.lineWidth = 1; const rnd = lcg(11); for (let i = 0; i < 30; i++) { g.beginPath(); g.moveTo(rnd() * W, rnd() * H); g.lineTo(rnd() * W, rnd() * H); g.globalAlpha = 0.3; g.stroke(); } g.globalAlpha = 1; for (const cx of [W * 0.25, W * 0.75]) { g.fillStyle = '#3a9ad9'; g.beginPath(); g.arc(cx, H / 2, H * 0.3, 0, Math.PI * 2); g.fill(); g.fillStyle = '#111'; g.beginPath(); g.arc(cx, H / 2, H * 0.15, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(cx - H * 0.07, H * 0.42, H * 0.05, 0, Math.PI * 2); g.fill(); } } },
+    { id: 'earth', name: 'Earth', price: 700, draw(g, W, H) { g.fillStyle = '#2f7fa8'; g.fillRect(0, 0, W, H); const rnd = lcg(19); g.fillStyle = '#4fa050'; for (let i = 0; i < 14; i++) { g.beginPath(); g.ellipse(rnd() * W, rnd() * H, W * (0.04 + rnd() * 0.07), H * (0.08 + rnd() * 0.14), rnd() * 3, 0, Math.PI * 2); g.fill(); } g.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 10; i++) { g.beginPath(); g.ellipse(rnd() * W, rnd() * H, W * 0.05, H * 0.04, rnd(), 0, Math.PI * 2); g.fill(); } } },
+    { id: 'gold', name: 'Gold', price: 900, draw(g, W, H) { const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#fff2b0'); gr.addColorStop(0.45, '#f5c84c'); gr.addColorStop(0.55, '#d8a62e'); gr.addColorStop(1, '#fff2b0'); g.fillStyle = gr; g.fillRect(0, 0, W, H); skinDots(g, W, H, 'rgba(120,80,10,.35)', W * 0.025); } },
+  ];
+  function skinCanvas(skin, W, H) { const c = document.createElement('canvas'); c.width = W; c.height = H; skin.draw(c.getContext('2d'), W, H); return c; }
+  const ballTex = new THREE.CanvasTexture(skinCanvas(SKINS[0], 256, 128));
 
   const mat = {
     turfSide: new THREE.MeshLambertMaterial({ color: 0x4f8632 }),
@@ -1803,8 +1912,10 @@
     menuEl.classList.remove('hide');
     let best = null;
     try { const v = parseInt(localStorage.getItem('pocketGolf.best'), 10); if (Number.isFinite(v)) best = v; } catch (e) { /* optional */ }
-    menuBest.innerHTML = best === null ? `Par ${TOTAL_PAR} <strong>${HOLES.length} holes</strong>` : `Best round <strong>${best}</strong>`;
+    menuBest.textContent = best === null ? `Par ${TOTAL_PAR} · ${HOLES.length} holes` : `Best round ${best} · Par ${TOTAL_PAR}`;
     menuSound.textContent = game.muted ? 'Sound off' : 'Sound on';
+    switchTab('pagePlay');
+    renderLobby();
   }
   function startFromMenu() {
     if (game.state !== 'menu') return;
@@ -1820,7 +1931,153 @@
     holeTitleSub.textContent = `Hole ${game.holeIndex + 1} · ${THEMES[cur.def.theme].label} · Par ${cur.def.par}`;
     holeTitle.classList.remove('hide');
   }
-  menuEl.addEventListener('pointerdown', (e) => { if (menuSound.contains(e.target)) return; e.preventDefault(); startFromMenu(); });
+  btnPlay.addEventListener('click', () => startFromMenu());
+
+  // ---------- lobby: coins, skins, shop, friends, stats ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('pocketGolf.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('pocketGolf.' + k, JSON.stringify(v)); } catch (e) { /* optional */ } },
+  };
+  const wallet = { coins: store.get('coins', 0), owned: store.get('owned', ['classic', 'sky']), skin: store.get('skin', 'classic'), gift: store.get('gift', ''), stats: store.get('stats', { rounds: 0, holes: 0, aces: 0, earned: 0, strokes: 0 }) };
+  if (!wallet.owned.includes(wallet.skin)) wallet.skin = 'classic';
+  function saveWallet() { store.set('coins', wallet.coins); store.set('owned', wallet.owned); store.set('skin', wallet.skin); store.set('gift', wallet.gift); store.set('stats', wallet.stats); }
+  function addCoins(n, why) {
+    if (!n) return;
+    wallet.coins += n; wallet.stats.earned += n; saveWallet();
+    coinCount.textContent = String(wallet.coins);
+    if (why) pop(`+${n} coins`, 'small gold');
+  }
+  function coinsFor(strokes, par, pickedUp) {
+    if (pickedUp) return 5;
+    const d = strokes - par;
+    if (strokes === 1) return 200;
+    if (d <= -2) return 120;
+    if (d === -1) return 60;
+    if (d === 0) return 30;
+    if (d === 1) return 15;
+    return 5;
+  }
+  function applySkin(id) {
+    const skin = SKINS.find((k) => k.id === id) || SKINS[0];
+    const tex = new THREE.CanvasTexture(skinCanvas(skin, 256, 128));
+    const old = mat.ball.map; mat.ball.map = tex; mat.ball.needsUpdate = true; if (old) old.dispose();
+    logoBall.style.backgroundImage = `url(${skinCanvas(skin, 128, 64).toDataURL()})`;
+    logoBall.style.backgroundSize = 'cover';
+  }
+  function skinCard(skin, mode) {
+    const owned = wallet.owned.includes(skin.id), eq = wallet.skin === skin.id;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'skin' + (owned ? ' owned' : ' locked') + (eq ? ' equipped' : '');
+    const c = skinCanvas(skin, 96, 48); c.setAttribute('aria-hidden', 'true');
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = skin.name;
+    const pr = document.createElement('span'); pr.className = 'pr';
+    if (mode === 'shop') { pr.innerHTML = owned ? 'Owned' : `<span class="coin"></span>${skin.price}`; }
+    else { pr.textContent = eq ? 'Equipped' : owned ? 'Tap to equip' : 'In the shop'; }
+    b.append(c, nm, pr);
+    b.addEventListener('click', () => {
+      initAudio();
+      if (mode === 'shop') {
+        if (owned) { wallet.skin = skin.id; saveWallet(); applySkin(skin.id); renderLobby(); return; }
+        if (wallet.coins < skin.price) { b.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 240 }); sfx.fall(); return; }
+        wallet.coins -= skin.price; wallet.owned.push(skin.id); wallet.skin = skin.id; saveWallet(); applySkin(skin.id); sfx.sink(); renderLobby();
+      } else if (owned) { wallet.skin = skin.id; saveWallet(); applySkin(skin.id); sfx.tick(); renderLobby(); }
+      else { switchTab('pageShop'); }
+    });
+    return b;
+  }
+  function todayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+  btnGift.addEventListener('click', () => {
+    if (wallet.gift === todayKey()) return;
+    initAudio(); wallet.gift = todayKey(); saveWallet(); addCoins(150, true); sfx.fanfare(); renderLobby();
+  });
+  function renderLobby() {
+    coinCount.textContent = String(wallet.coins);
+    skinGrid.innerHTML = ''; SKINS.forEach((k) => skinGrid.appendChild(skinCard(k, 'skins')));
+    shopGrid.innerHTML = ''; SKINS.filter((k) => k.price > 0).forEach((k) => shopGrid.appendChild(skinCard(k, 'shop')));
+    const claimed = wallet.gift === todayKey();
+    btnGift.disabled = claimed; btnGift.textContent = claimed ? 'Claimed' : 'Claim';
+    giftText.textContent = claimed ? 'Come back tomorrow for more' : '150 coins, once a day';
+    const st = wallet.stats;
+    const bestR = bestRound();
+    const stars = HOLES.reduce((a, h, i) => a + (holeBest[i] != null ? starsFor(holeBest[i], h.par) : 0), 0);
+    statGrid.innerHTML = [['Rounds', st.rounds], ['Best round', bestR === null ? '–' : bestR], ['Stars', `${stars}/${HOLES.length * 3}`], ['Holes played', st.holes], ['Holes in one', st.aces], ['Coins earned', st.earned]].map(([l, v]) => `<div><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+    statTable.innerHTML = `<colgroup><col class="c0"><col class="c1"><col class="c2"><col class="c4"><col class="c5"></colgroup><tr><th>#</th><th>Hole</th><th>Par</th><th>Best</th><th>Stars</th></tr>` + HOLES.map((h, i) => `<tr><td class="n">${i + 1}</td><td class="name">${h.name}</td><td class="r">${h.par}</td><td class="r best">${holeBest[i] != null ? holeBest[i] : '–'}</td><td class="r"><span class="stars">${starsHtml(holeBest[i] != null ? starsFor(holeBest[i], h.par) : 0)}</span></td></tr>`).join('');
+  }
+  const tabs = Array.from(menuEl.querySelectorAll('.tab'));
+  function switchTab(id) {
+    tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === id)));
+    menuEl.querySelectorAll('.page').forEach((pg) => pg.classList.toggle('on', pg.id === id));
+    if (id === 'pageFriends') loadLeaderboard();
+  }
+  tabs.forEach((t) => t.addEventListener('click', () => { initAudio(); sfx.tick(); switchTab(t.dataset.tab); }));
+
+  // friends leaderboard: shared store across everyone who opens this link, when the host provides it
+  let cloud = { db: null, user: null, id: null, tried: false };
+  async function connectCloud() {
+    if (cloud.tried) return cloud;
+    cloud.tried = true;
+    try {
+      if (!(window.claude && typeof window.claude.use === 'function')) return cloud;
+      const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+      cloud.db = db; cloud.user = user;
+      if (user) {
+        const me = await user.me();
+        cloud.id = me.id;
+        if (me.name) meName.textContent = me.name;
+        if (me.avatarUrl) { meAvatar.src = me.avatarUrl; meAvatar.hidden = false; }
+      }
+    } catch (e) { /* offline or not framed */ }
+    return cloud;
+  }
+  async function pushScore() {
+    const c = await connectCloud();
+    if (!c.db || !c.id) return;
+    const stars = HOLES.reduce((a, h, i) => a + (holeBest[i] != null ? starsFor(holeBest[i], h.par) : 0), 0);
+    const best = bestRound();
+    try { await c.db.doc('scores/' + c.id).set({ stars, best: best === null ? 999 : best, rounds: wallet.stats.rounds, aces: wallet.stats.aces, skin: wallet.skin, updated: new Date().toISOString() }); } catch (e) { /* read-only viewer */ }
+  }
+  let lbBusy = false;
+  async function loadLeaderboard() {
+    if (lbBusy) return; lbBusy = true;
+    const c = await connectCloud();
+    if (!c.db) {
+      friendsSub.textContent = 'The online leaderboard needs this page opened on claude.ai while signed in.';
+      lbList.innerHTML = `<li class="empty">Your own best round is ${bestRound() === null ? 'not set yet' : bestRound()}. Play on claude.ai to compare with friends.</li>`;
+      lbBusy = false; return;
+    }
+    try {
+      const snap = await c.db.collection('scores').orderBy('stars', 'desc').limit(50).get();
+      const rows = snap.docs.filter((d) => d.exists).map((d) => ({ id: d.id, ...d.data() }));
+      rows.sort((a, b) => (b.stars || 0) - (a.stars || 0) || (a.best || 999) - (b.best || 999));
+      const ids = rows.map((r) => r.id);
+      const profiles = c.user ? await c.user.profiles(ids) : {};
+      lbList.innerHTML = '';
+      if (!rows.length) { lbList.innerHTML = '<li class="empty">Nobody on the board yet. Finish a hole to post your stars.</li>'; }
+      rows.forEach((r, i) => {
+        const li = document.createElement('li');
+        if (r.id === c.id) li.className = 'me-row';
+        const rk = document.createElement('span'); rk.className = 'rk' + (i < 3 ? ' top' : ''); rk.textContent = String(i + 1);
+        const img = document.createElement('img'); img.alt = '';
+        const p = profiles[r.id];
+        if (p && p.avatarUrl) img.src = p.avatarUrl;
+        const nm = document.createElement('span'); nm.className = 'nm';
+        nm.textContent = (p && p.name) || (r.id === c.id ? 'You' : 'Golfer');
+        const sm = document.createElement('small'); sm.textContent = `${r.rounds || 0} round${r.rounds === 1 ? '' : 's'}${r.aces ? ` · ${r.aces} ace${r.aces === 1 ? '' : 's'}` : ''}`; nm.appendChild(sm);
+        const st = document.createElement('span'); st.className = 'st'; st.textContent = `${r.stars || 0} ★`;
+        const bs = document.createElement('span'); bs.className = 'bs'; bs.textContent = r.best && r.best < 999 ? String(r.best) : '–';
+        li.append(rk, img, nm, st, bs);
+        lbList.appendChild(li);
+      });
+      friendsSub.textContent = 'Everyone who plays this link, ranked by stars, then best round.';
+    } catch (e) {
+      lbList.innerHTML = '<li class="empty">Could not load the board right now.</li>';
+    }
+    lbBusy = false;
+  }
+  applySkin(wallet.skin);
+  renderLobby();
+  connectCloud();
   menuSound.addEventListener('click', (e) => {
     e.stopPropagation(); initAudio();
     game.muted = !game.muted; applyMuteUi();
@@ -2240,6 +2497,10 @@
     if (record) { holeBest[game.holeIndex] = game.strokes; try { localStorage.setItem('pocketGolf.holeBest', JSON.stringify(holeBest)); } catch (e) { /* optional */ } }
     if (!pickedUp) pop(scoreLabel(game.strokes, par), d < 0 ? 'gold' : '');
     if (record && prevBest != null) setTimeout(() => pop('Hole record!', 'gold small'), 700);
+    const earned = coinsFor(game.strokes, par, pickedUp);
+    wallet.stats.holes++; if (game.strokes === 1) wallet.stats.aces++; wallet.stats.strokes += game.strokes;
+    setTimeout(() => addCoins(earned, true), 1200);
+    pushScore();
     setTimeout(() => {
       showOverlay({
         eyebrow: `Hole ${game.holeIndex + 1} · ${cur.def.name} · Par ${par}`,
@@ -2248,7 +2509,7 @@
         sub: pickedUp
           ? `Max ${game.strokes} strokes on this hole`
           : `${game.strokes} stroke${game.strokes === 1 ? '' : 's'}, ${d === 0 ? 'level par' : fmtPar(d) + ' on this hole'}`,
-        body: `<div class="stars big">${starsHtml(st)}</div>${record && prevBest != null ? '<p class="best"><strong>New hole record</strong></p>' : prevBest != null ? `<p class="best">Your best here is <strong>${Math.min(prevBest, game.strokes)}</strong></p>` : ''}`,
+        body: `<div class="stars big">${starsHtml(st)}</div><p class="best"><span class="coins"><span class="coin"></span> <strong>+${earned}</strong> coins</span></p>${record && prevBest != null ? '<p class="best"><strong>New hole record</strong></p>' : prevBest != null ? `<p class="best">Your best here is <strong>${Math.min(prevBest, game.strokes)}</strong></p>` : ''}`,
         button: last ? 'See the scorecard' : 'Next hole',
         onClick: () => { if (last) finishCourse(); else loadHole(game.holeIndex + 1, true); },
       });
@@ -2265,6 +2526,7 @@
       if (best === null || total < best) localStorage.setItem('pocketGolf.best', String(total));
     } catch (e) { /* storage is optional */ }
     const isNewBest = best === null || total < best;
+    wallet.stats.rounds++; saveWallet(); addCoins(100 + (d < 0 ? 100 : 0), false); pushScore();
     const half = Math.ceil(HOLES.length / 2);
     const card = (from, to, label) => {
       const idx = HOLES.slice(from, to).map((h, k) => from + k);
@@ -2281,7 +2543,8 @@
       ${card(half, HOLES.length, 'In')}
       <p class="legend">Circle for birdie, double circle for eagle, square for bogey, double square for worse.</p>
       <p class="best"><span class="stars">${starsHtml(3)}</span> ${game.stars.reduce((a, v) => a + (v || 0), 0)} of ${HOLES.length * 3} stars this round</p>
-      <p class="best">${isNewBest ? '<strong>New best round</strong>' : `Your best round is <strong>${best}</strong>`}</p>`;
+      <p class="best">${isNewBest ? '<strong>New best round</strong>' : `Your best round is <strong>${best}</strong>`}</p>
+      <p class="best"><span class="coins"><span class="coin"></span> <strong>+${100 + (d < 0 ? 100 : 0)}</strong> coins for finishing the round</span></p>`;
     showOverlay({
       eyebrow: `Round complete · ${HOLES.length} holes`,
       title: d === 0 ? 'Level par' : (d < 0 ? `${-d} under par` : `${d} over par`),
