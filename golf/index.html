@@ -506,7 +506,7 @@
 
   <div class="menu" id="menu">
     <div class="menu-top">
-      <span class="menu-chip" id="menuBest">Par 30 <strong>9 holes</strong></span>
+      <span class="menu-chip" id="menuBest">Par 56 <strong>12 holes</strong></span>
       <button class="menu-chip" id="menuSound" type="button">Sound on</button>
     </div>
     <div class="menu-center">
@@ -515,7 +515,7 @@
         <div class="logo-small">Pocket</div>
         <div class="logo-big">Golf</div>
       </div>
-      <p class="menu-sub">9 mountain holes · no walls</p>
+      <p class="menu-sub">12 holes · meadow, forest, autumn, alpine</p>
     </div>
     <div class="menu-bottom">
       <div class="tap">Tap to play</div>
@@ -568,6 +568,14 @@
     sand: { decel: 30, bounce: 0.05, grip: 0.95, label: 'Sand', cls: 'sand' },
     ice: { decel: 1.5, bounce: 0.3, grip: 0.92, label: 'Ice', cls: 'ice' },
   };
+  // Four landscapes, three holes each. Colours are picked from real meadows, pine forests, autumn hills and high alpine ground.
+  const THEMES = {
+    meadow: { label: 'Meadow', grass: ['#5e9c3c', '#699f44', '#527f33', '#78a94c'], grassSide: 0x4f8632, green: ['#86b55a', '#7fab53'], dirt: ['#7b5636', '#6a4a2e', '#8a6340'], leaf: [0x3f8a45, 0x4f9a4b, 0x3a7a3c], trunk: 0x6b4a2e, treeShape: 'round', rock: 0x8c8f88, bush: 0x4d8c3e, mount: [0x5d8f3f, 0x8a8375, 0xf1f3ef], snowFrom: 0.78, sand: 0xd9c48c, water: 0x2f7fa8, sky: ['#6fa8dc', '#aacdea', '#dfeee4'], sun: 'rgba(255,246,216,.95)', fog: 0xaacdea, flowers: [0xfff5f0, 0xffd84a, 0xf28bb0, 0xb48cf0] },
+    forest: { label: 'Forest', grass: ['#4b8a33', '#55923a', '#3f7a2c', '#5f9a40'], grassSide: 0x3f752b, green: ['#7aa84f', '#73a04a'], dirt: ['#6d4b2f', '#5c3f27', '#7a5538'], leaf: [0x234d2a, 0x2e6a36, 0x1f4426], trunk: 0x5a3e27, treeShape: 'cone', rock: 0x7f8580, bush: 0x3d7a34, mount: [0x4f7f3a, 0x7a7c74, 0xeef1f0], snowFrom: 0.72, sand: 0xcdb985, water: 0x2a6f8f, sky: ['#5f93c4', '#9dbfd9', '#cfe0d8'], sun: 'rgba(255,241,204,.9)', fog: 0x9dbfd9, flowers: [0xffffff, 0xf7e08a, 0xcf7ad0] },
+    autumn: { label: 'Autumn', grass: ['#8aa04a', '#9aa852', '#7c8f40', '#a8b25c'], grassSide: 0x7d8f3f, green: ['#9fb35a', '#96aa53'], dirt: ['#7d4f2e', '#6b4126', '#8f5c36'], leaf: [0xc9692a, 0xd9a13a, 0xa83a2a], trunk: 0x5f3d26, treeShape: 'round', rock: 0x8c857a, bush: 0xb8752e, mount: [0x8a8a46, 0x8c7c68, 0xf3eee4], snowFrom: 0.8, sand: 0xdcc490, water: 0x3b7f93, sky: ['#7aa3cf', '#c9c7b4', '#f0d9b5'], sun: 'rgba(255,230,176,.95)', fog: 0xc9c7b4, flowers: [0xffffff, 0xf2c14e, 0xd96b3a] },
+    alpine: { label: 'Alpine', grass: ['#78a66a', '#84b075', '#6a9660', '#90bb80'], grassSide: 0x6a9560, green: ['#93bd7f', '#8bb477'], dirt: ['#6f6559', '#5e554a', '#7f7566'], leaf: [0x2e5f3a, 0x37703f, 0x27512f], trunk: 0x4f3b2a, treeShape: 'cone', rock: 0x9aa0a3, bush: 0x4e7d4a, mount: [0x6f8f62, 0x8f9499, 0xf7f9fb], snowFrom: 0.55, sand: 0xd6ccb0, water: 0x3f8fb3, sky: ['#7fb0e0', '#c6ddf0', '#f1f5f8'], sun: 'rgba(255,255,255,.95)', fog: 0xc6ddf0, flowers: [0xffffff, 0xe8f0ff, 0x7fa8ff] },
+  };
+  const THEME_ORDER = ['meadow', 'forest', 'autumn', 'alpine'];
   const PAL = {
     turfA: '#4fc45f', turfB: '#58cf68', green: 0x9be87c, dirt: 0x9a6238, wall: 0xfff4d6,
     sand: 0xf2dc9b, bumper: 0xff5a5f, bumperCap: 0xfff4f4, pad: 0xffb703, padRing: 0xfff1c9,
@@ -635,7 +643,26 @@
       mounts: [[26, 15, 3, 6], [0, 21, 3, 6], [26, 42, 3, 7], [6, 42, 3, 7], [20, 30, 2.5, 5], [16, 23, 2.5, 5], [14, 15, 2.5, 5], [6, 34, 2.5, 5], [0, 13, 2.5, 5], [8, 2, 2, 4]],
       bumpers: [[14, 19]], sand: [[20, 26, 26, 28]], spinners: [[23, 31, 4, 1.5]], ice: [[13, 35, 18, 41]], hills: [[23, 24.5, 2, 0.7]], pools: [[13, 38, 1.3]],
       deco: [[1.5, 1.5, 'tree'], [6.5, 8, 'rock'], [1.5, 19, 'tree'], [6.5, 14.5, 'bush'], [24.5, 40.5, 'tree'], [8, 36, 'bush'], [24.5, 22, 'rock'], [20, 36, 'bush'], [12, 41, 'tree'], [24.5, 34, 'rock']] },
+    { name: 'Lakeside', par: 4, tee: [5, 3], hole: [26, 33], hint: 'A lake sits in the bend. Chip over it or creep round the shore',
+      plats: [{ r: [0, 0, 10, 12], e: 0 }, { r: [0, 10, 30, 20], e: 0 }, { r: [22, 18, 30, 36], e: 0 }],
+      path: [[5, 3], [5, 15], [26, 15], [26, 33]],
+      pools: [[15, 15, 3.2]], sand: [[23, 26, 27, 28]],
+      mounts: [[0, 12, 3, 6], [10, 0, 2.5, 4], [30, 10, 3, 6], [30, 36, 3, 7], [22, 36, 3, 6], [22, 26, 2.5, 5], [8, 20, 2.5, 5], [16, 20, 2.5, 5], [0, 20, 2.5, 5]],
+      deco: [[2, 2, 'tree'], [8, 8, 'rock'], [2, 18, 'tree'], [20, 12, 'bush'], [28.5, 22, 'tree'], [24, 30, 'bush'], [28.5, 30, 'rock'], [12, 11.5, 'tree'], [8, 2, 'bush']] },
+    { name: 'The Ridge', par: 5, tee: [4, 3], hole: [24, 33], hint: 'A narrow pass between two ridges, with bumps along the floor',
+      plats: [{ r: [0, 0, 8, 14], e: 0 }, { r: [0, 12, 28, 20], e: 0 }, { r: [20, 18, 28, 36], e: 0 }],
+      path: [[4, 3], [4, 16], [24, 16], [24, 34]],
+      mounts: [[10, 20, 2.5, 5], [16, 20, 2.5, 5], [10, 12, 2, 4], [16, 12, 2, 4], [28, 12, 3, 6], [0, 20, 3, 6], [28, 36, 3, 7], [20, 36, 3, 6], [20, 26, 2.5, 5], [0, 6, 2.5, 5]],
+      hills: [[13, 16, 2.2, 0.7], [19, 16, 2, 0.6]], ice: [[20, 28, 28, 31]],
+      deco: [[2, 2, 'tree'], [6, 9, 'rock'], [2, 14, 'bush'], [24, 20, 'bush'], [26.5, 23, 'tree'], [21.5, 33, 'rock'], [26.5, 34.5, 'tree'], [6, 18.5, 'tree']] },
+    { name: 'Summit', par: 6, tee: [4, 3], hole: [12, 43], hint: 'Five floors to the top. Every step needs a chip',
+      plats: [{ r: [0, 0, 8, 12], e: 0 }, { r: [6, 10, 24, 18], e: 1.5 }, { r: [20, 16, 28, 30], e: 3 }, { r: [8, 28, 28, 36], e: 4.5 }, { r: [8, 34, 16, 46], e: 6 }],
+      path: [[4, 3], [4, 9], [14, 14], [23, 14], [24, 32], [12, 32], [12, 43]],
+      mounts: [[24, 10, 3, 6], [0, 12, 3, 6], [28, 36, 3, 6], [8, 30, 2.5, 5], [16, 46, 3, 7], [8, 46, 3, 7], [20, 22, 2.5, 5], [28, 22, 2.5, 5], [14, 18, 2.5, 5], [8, 2, 2.5, 4], [16, 40, 2.5, 5]],
+      spinners: [[24, 24, 4, 1.5]], sand: [[10, 37, 14, 39]], ice: [[18, 29, 26, 31]],
+      deco: [[2, 2, 'tree'], [6.5, 9, 'rock'], [8, 16.5, 'tree'], [22, 11.5, 'bush'], [26.5, 28, 'rock'], [10, 34.5, 'bush'], [14.5, 44, 'tree'], [9.5, 44, 'rock'], [26.5, 34.5, 'tree']] },
   ];
+  HOLES.forEach((h, i) => { h.theme = THEME_ORDER[Math.min(THEME_ORDER.length - 1, Math.floor(i / 3))]; });
   const TOTAL_PAR = HOLES.reduce((s, h) => s + h.par, 0);
   const DECO = { tree: { r: 0.75, bounce: 0.5 }, rock: { r: 0.7, bounce: 0.55 }, bush: { r: 0.8, bounce: 0.35 } };
 
@@ -654,8 +681,9 @@
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 400);
-  scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x6a8f5a, 0.42));
-  const sun = new THREE.DirectionalLight(0xfff4e0, 0.72);
+  scene.fog = new THREE.Fog(0xaacdea, 48, 130);
+  scene.add(new THREE.HemisphereLight(0xdce9ff, 0x51633a, 0.6));
+  const sun = new THREE.DirectionalLight(0xfff3dc, 0.95);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0008;
@@ -671,7 +699,58 @@
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
     return t;
   }
-  const turfTex = checkerTex(PAL.turfA, PAL.turfB, 32);
+  const maxAniso = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1;
+  function lcg(seed) { let v = seed; return () => { v = (v * 1103515245 + 12345) & 0x7fffffff; return v / 0x7fffffff; }; }
+  // A tile of drawn grass blades over faint mowing stripes. Blades near the edges are repeated across so the tile wraps.
+  function grassTexture(T) {
+    const S = 256;
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d');
+    g.fillStyle = T.grass[0]; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? 'rgba(255,255,255,.028)' : 'rgba(0,0,0,.028)'; g.fillRect(0, i * S / 8, S, S / 8); }
+    const rnd = lcg(9);
+    g.lineCap = 'round';
+    for (let i = 0; i < 5200; i++) {
+      const x = rnd() * S, y = rnd() * S, len = 2 + rnd() * 5, a = -Math.PI / 2 + (rnd() - 0.5) * 1.3;
+      g.strokeStyle = T.grass[1 + Math.floor(rnd() * 3)]; g.globalAlpha = 0.3 + rnd() * 0.55; g.lineWidth = 0.8 + rnd() * 1.2;
+      const dx = Math.cos(a) * len, dy = Math.sin(a) * len;
+      for (const [ox, oy] of [[0, 0], [-S, 0], [0, -S], [-S, -S]]) {
+        if ((ox && x < S - 10) || (oy && y < S - 10)) continue;
+        g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + dx, y + oy + dy); g.stroke();
+      }
+    }
+    g.globalAlpha = 1;
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return t;
+  }
+  function greenTexture(T) {
+    const S = 128;
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d');
+    g.fillStyle = T.green[0]; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)'; g.fillRect(i * S / 8, 0, S / 8, S); }
+    const rnd = lcg(21);
+    g.fillStyle = T.green[1];
+    for (let i = 0; i < 1800; i++) { g.globalAlpha = 0.25 + rnd() * 0.4; g.fillRect(rnd() * S, rnd() * S, 1.5, 1.5); }
+    g.globalAlpha = 1;
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return t;
+  }
+  function dirtTexture(T) {
+    const S = 128;
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d');
+    g.fillStyle = T.dirt[0]; g.fillRect(0, 0, S, S);
+    const rnd = lcg(5);
+    let y = 0;
+    while (y < S) { const h = 6 + rnd() * 18; g.fillStyle = rnd() < 0.5 ? T.dirt[1] : T.dirt[2]; g.globalAlpha = 0.35 + rnd() * 0.4; g.fillRect(0, y, S, h); y += h + 2 + rnd() * 6; }
+    for (let i = 0; i < 900; i++) { g.fillStyle = rnd() < 0.5 ? '#3a2a1c' : '#b08a62'; g.globalAlpha = 0.15 + rnd() * 0.3; const r = 1 + rnd() * 2.5; g.fillRect(rnd() * S, rnd() * S, r, r * 0.7); }
+    g.globalAlpha = 1;
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return t;
+  }
+  const texCache = {};
+  function themeTextures(name) {
+    if (!texCache[name]) { const T = THEMES[name]; texCache[name] = { grass: grassTexture(T), green: greenTexture(T), dirt: dirtTexture(T) }; }
+    return texCache[name];
+  }
   const ballTex = (() => {
     const c = document.createElement('canvas'); c.width = 128; c.height = 64;
     const g = c.getContext('2d');
@@ -682,36 +761,41 @@
   })();
 
   const mat = {
-    turfSide: new THREE.MeshToonMaterial({ color: 0x4fc45f }),
-    green: new THREE.MeshToonMaterial({ color: PAL.green }),
-    dirt: new THREE.MeshToonMaterial({ color: PAL.dirt }),
-    wall: new THREE.MeshToonMaterial({ color: PAL.wall }),
-    sand: new THREE.MeshToonMaterial({ color: PAL.sand }),
-    bumper: new THREE.MeshToonMaterial({ color: PAL.bumper }),
-    bumperCap: new THREE.MeshToonMaterial({ color: PAL.bumperCap }),
-    pad: new THREE.MeshToonMaterial({ color: PAL.pad }),
-    padRing: new THREE.MeshToonMaterial({ color: PAL.padRing }),
-    flag: new THREE.MeshToonMaterial({ color: PAL.flag, side: THREE.DoubleSide }),
-    pole: new THREE.MeshToonMaterial({ color: PAL.pole }),
+    turfSide: new THREE.MeshLambertMaterial({ color: 0x4f8632 }),
+    greenSide: new THREE.MeshLambertMaterial({ color: 0x86b55a }),
+    dirtTop: new THREE.MeshLambertMaterial({ color: 0x7b5636 }),
+    leafC: new THREE.MeshLambertMaterial({ color: 0x3a7a3c }),
+    tuft: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+    flower: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+    green: new THREE.MeshLambertMaterial({ color: PAL.green }),
+    dirt: new THREE.MeshLambertMaterial({ color: PAL.dirt }),
+    wall: new THREE.MeshLambertMaterial({ color: PAL.wall }),
+    sand: new THREE.MeshLambertMaterial({ color: PAL.sand }),
+    bumper: new THREE.MeshLambertMaterial({ color: PAL.bumper }),
+    bumperCap: new THREE.MeshLambertMaterial({ color: PAL.bumperCap }),
+    pad: new THREE.MeshLambertMaterial({ color: PAL.pad }),
+    padRing: new THREE.MeshLambertMaterial({ color: PAL.padRing }),
+    flag: new THREE.MeshLambertMaterial({ color: PAL.flag, side: THREE.DoubleSide }),
+    pole: new THREE.MeshLambertMaterial({ color: PAL.pole }),
     cup: new THREE.MeshBasicMaterial({ color: PAL.cup }),
     cupRim: new THREE.MeshBasicMaterial({ color: PAL.cupRim }),
-    cloud: new THREE.MeshToonMaterial({ color: PAL.cloud }),
-    ball: new THREE.MeshToonMaterial({ map: ballTex }),
-    trunk: new THREE.MeshToonMaterial({ color: PAL.trunk }),
-    leafA: new THREE.MeshToonMaterial({ color: PAL.leafA }),
-    leafB: new THREE.MeshToonMaterial({ color: PAL.leafB }),
-    rock: new THREE.MeshToonMaterial({ color: PAL.rock }),
-    bush: new THREE.MeshToonMaterial({ color: PAL.bush }),
-    hill: new THREE.MeshToonMaterial({ color: PAL.hill }),
-    mount: new THREE.MeshToonMaterial({ vertexColors: true }),
-    ice: new THREE.MeshToonMaterial({ color: PAL.ice }),
-    water: new THREE.MeshToonMaterial({ color: PAL.water }),
-    poolRim: new THREE.MeshToonMaterial({ color: PAL.poolRim }),
+    cloud: new THREE.MeshLambertMaterial({ color: PAL.cloud }),
+    ball: new THREE.MeshLambertMaterial({ map: ballTex }),
+    trunk: new THREE.MeshLambertMaterial({ color: PAL.trunk }),
+    leafA: new THREE.MeshLambertMaterial({ color: PAL.leafA }),
+    leafB: new THREE.MeshLambertMaterial({ color: PAL.leafB }),
+    rock: new THREE.MeshLambertMaterial({ color: PAL.rock }),
+    bush: new THREE.MeshLambertMaterial({ color: PAL.bush }),
+    hill: new THREE.MeshLambertMaterial({ color: PAL.hill }),
+    mount: new THREE.MeshLambertMaterial({ vertexColors: true }),
+    ice: new THREE.MeshLambertMaterial({ color: PAL.ice }),
+    water: new THREE.MeshLambertMaterial({ color: PAL.water }),
+    poolRim: new THREE.MeshLambertMaterial({ color: PAL.poolRim }),
     ripple: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }),
-    launcher: new THREE.MeshToonMaterial({ color: PAL.launcher }),
+    launcher: new THREE.MeshLambertMaterial({ color: PAL.launcher }),
     arrow: new THREE.MeshBasicMaterial({ color: PAL.arrow, side: THREE.DoubleSide }),
-    bar: new THREE.MeshToonMaterial({ color: PAL.bar }),
-    barEnd: new THREE.MeshToonMaterial({ color: PAL.barEnd }),
+    bar: new THREE.MeshLambertMaterial({ color: PAL.bar }),
+    barEnd: new THREE.MeshLambertMaterial({ color: PAL.barEnd }),
   };
   function domeGeometry(rad, hgt, rings, segs) {
     const pos = [], idx = [];
@@ -728,7 +812,7 @@
     g.setIndex(idx); g.computeVertexNormals();
     return g;
   }
-  function mountainGeometry(rad, hgt, rings, segs, seed) {
+  function mountainGeometry(rad, hgt, rings, segs, seed, T) {
     const pos = [], col = [], idx = [];
     const c = new THREE.Color();
     for (let i = 0; i <= rings; i++) {
@@ -741,7 +825,7 @@
         const y = hh * (i === 0 ? 1 : 1 + (hash2(j * 3 + seed, i * 5) - 0.5) * 0.12);
         pos.push(Math.cos(a) * r, y, Math.sin(a) * r);
         const f = y / hgt;
-        if (f > 0.78) c.set(PAL.mountSnow); else if (f > 0.4) c.set(PAL.mountRock); else c.set(PAL.mountBase);
+        if (f > T.snowFrom) c.set(T.mount[2]); else if (f > T.snowFrom * 0.5) c.set(T.mount[1]); else c.set(T.mount[0]);
         c.offsetHSL(0, 0, (hash2(i + seed, j) - 0.5) * 0.06);
         col.push(c.r, c.g, c.b);
       }
@@ -773,10 +857,19 @@
     rock: new THREE.DodecahedronGeometry(0.75, 0),
     bush: new THREE.IcosahedronGeometry(0.8, 1),
     arrow: new THREE.ShapeGeometry(arrowShape),
+    canopyA: new THREE.IcosahedronGeometry(1.25, 1),
+    canopyB: new THREE.IcosahedronGeometry(0.85, 1),
+    blade: (() => {
+      const g = new THREE.BufferGeometry();
+      const v = new Float32Array([-0.09, 0, 0, 0.09, 0, 0, 0, 0.55, 0, 0, 0, -0.09, 0, 0, 0.09, 0, 0.55, 0, -0.06, 0, -0.06, 0.06, 0, 0.06, 0, 0.45, 0]);
+      g.setAttribute('position', new THREE.BufferAttribute(v, 3)); g.computeVertexNormals(); return g;
+    })(),
+    flower: new THREE.IcosahedronGeometry(0.13, 0),
   };
 
   const holeGroup = new THREE.Group();
   scene.add(holeGroup);
+  const sharedGeos = new Set(Object.values(geo));
   const cloudGroup = new THREE.Group();
   scene.add(cloudGroup);
   for (let i = 0; i < 10; i++) {
@@ -814,7 +907,7 @@
 
   // ---------- particles ----------
   const PMAX = 220;
-  const pMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshToonMaterial({ color: 0xffffff }), PMAX);
+  const pMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), PMAX);
   pMesh.frustumCulled = false;
   pMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   scene.add(pMesh);
@@ -863,7 +956,7 @@
   let flagMesh = null;
   const own = [];
   function box(x0, y0, z0, x1, y1, z1) { return { minX: x0, minY: y0, minZ: z0, maxX: x1, maxY: y1, maxZ: z1 }; }
-  function addMesh(m, cast, receive) { m.castShadow = !!cast; m.receiveShadow = !!receive; holeGroup.add(m); own.push(m); return m; }
+  function addMesh(m, cast, receive) { m.castShadow = !!cast; m.receiveShadow = !!receive; if (m.geometry && sharedGeos.has(m.geometry)) m.userData.shared = true; holeGroup.add(m); own.push(m); return m; }
   function meshBox(b, material, cast, receive) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ), material);
     m.position.set((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2);
@@ -949,16 +1042,55 @@
     return 'turf';
   }
 
+  function applyTheme(T) {
+    mat.turfSide.color.set(T.grassSide); mat.greenSide.color.set(T.green[0]); mat.dirtTop.color.set(T.dirt[0]); mat.dirt.color.set(T.dirt[0]);
+    mat.trunk.color.set(T.trunk); mat.leafA.color.set(T.leaf[0]); mat.leafB.color.set(T.leaf[1]); mat.leafC.color.set(T.leaf[2]);
+    mat.rock.color.set(T.rock); mat.bush.color.set(T.bush); mat.sand.color.set(T.sand); mat.water.color.set(T.water); mat.hill.color.set(T.grass[3]);
+    stage.style.background = `radial-gradient(circle at 78% 8%, ${T.sun} 0, rgba(255,255,255,0) 22%), linear-gradient(180deg, ${T.sky[0]} 0%, ${T.sky[1]} 48%, ${T.sky[2]} 100%)`;
+    scene.fog.color.set(T.fog);
+  }
+  function addTree(T, x, y, z, sc, idx, cast) {
+    const k = ((idx % 3) + 3) % 3;
+    const leaf = [mat.leafA, mat.leafB, mat.leafC][k];
+    const tr = addMesh(new THREE.Mesh(geo.trunk, mat.trunk), cast, cast); tr.position.set(x, y + 0.6 * sc, z); tr.scale.setScalar(sc);
+    if (T.treeShape === 'round') {
+      const a = addMesh(new THREE.Mesh(geo.canopyA, leaf), cast, cast); a.position.set(x, y + 2.1 * sc, z); a.scale.set(sc, sc * 0.92, sc); a.rotation.y = idx;
+      const b = addMesh(new THREE.Mesh(geo.canopyB, [mat.leafA, mat.leafB, mat.leafC][(k + 1) % 3]), cast, cast); b.position.set(x + 0.35 * sc, y + 3.0 * sc, z - 0.2 * sc); b.scale.setScalar(sc); b.rotation.y = idx * 2;
+    } else {
+      const a = addMesh(new THREE.Mesh(geo.leafA, leaf), cast, cast); a.position.set(x, y + 1.9 * sc, z); a.scale.setScalar(sc);
+      const b = addMesh(new THREE.Mesh(geo.leafB, leaf), cast, cast); b.position.set(x, y + 3.0 * sc, z); b.scale.setScalar(sc);
+    }
+  }
+  function distToSeg(px, pz, ax, az, bx, bz) {
+    const vx = bx - ax, vz = bz - az, l2 = vx * vx + vz * vz || 1;
+    const t = clamp(((px - ax) * vx + (pz - az) * vz) / l2, 0, 1);
+    return { d: Math.hypot(px - (ax + vx * t), pz - (az + vz * t)), t };
+  }
+  function distToPath(x, z) {
+    let best = Infinity;
+    const P = cur.path;
+    for (let i = 0; i < P.length - 1; i++) best = Math.min(best, distToSeg(x, z, P[i].x, P[i].z, P[i + 1].x, P[i + 1].z).d);
+    return best;
+  }
   function buildHoleScene() {
-    while (own.length) { const m = own.pop(); holeGroup.remove(m); if (m.geometry) m.geometry.dispose(); if (m.userData.mat) m.userData.mat.dispose(); }
+    while (own.length) { const m = own.pop(); holeGroup.remove(m); if (m.geometry && !m.userData.shared) m.geometry.dispose(); if (m.userData.mat) m.userData.mat.dispose(); if (m.userData.tex) m.userData.tex.dispose(); }
+    const T = THEMES[cur.def.theme];
+    const tx = themeTextures(cur.def.theme);
+    applyTheme(T);
     for (const p of cur.plats) {
-      meshBox(box(p.minX, p.top - PLAT_THICK, p.minZ, p.maxX, p.top - 0.36, p.maxZ), mat.dirt, true, true);
-      const w = p.maxX - p.minX + 0.28, d = p.maxZ - p.minZ + 0.28;
-      const tex = turfTex.clone(); tex.needsUpdate = true; tex.repeat.set(w / 2, d / 2);
-      const top = new THREE.MeshToonMaterial({ map: tex });
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.36, d), [mat.turfSide, mat.turfSide, top, mat.turfSide, mat.turfSide, mat.turfSide]);
+      const w = p.maxX - p.minX, d = p.maxZ - p.minZ;
+      const dt = tx.dirt.clone(); dt.needsUpdate = true; dt.repeat.set(Math.max(1, Math.round(w / 3)), 1);
+      const dside = new THREE.MeshLambertMaterial({ map: dt });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, PLAT_THICK - 0.36, d), [dside, dside, mat.dirtTop, mat.dirtTop, dside, dside]);
+      body.position.set((p.minX + p.maxX) / 2, p.top - 0.36 - (PLAT_THICK - 0.36) / 2, (p.minZ + p.maxZ) / 2);
+      body.userData.mat = dside; body.userData.tex = dt;
+      addMesh(body, true, true);
+      const gw = w + 0.28, gd = d + 0.28;
+      const tex = tx.grass.clone(); tex.needsUpdate = true; tex.repeat.set(gw / 4, gd / 4);
+      const top = new THREE.MeshLambertMaterial({ map: tex });
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(gw, 0.36, gd), [mat.turfSide, mat.turfSide, top, mat.turfSide, mat.turfSide, mat.turfSide]);
       slab.position.set((p.minX + p.maxX) / 2, p.top - 0.18, (p.minZ + p.maxZ) / 2);
-      slab.userData.mat = top;
+      slab.userData.mat = top; slab.userData.tex = tex;
       addMesh(slab, true, true);
     }
     for (const s of cur.solids) if (s.wall) meshBox(s, mat.wall, true, true);
@@ -967,7 +1099,10 @@
       meshBox(box(s.minX, top - 0.2, s.minZ, s.maxX, top + 0.02, s.maxZ), mat.sand, false, true);
     }
     const gy = cur.holePlat.top;
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(3.4, 36), mat.green);
+    const gtex = tx.green.clone(); gtex.needsUpdate = true; gtex.repeat.set(2, 2);
+    const gmat = new THREE.MeshLambertMaterial({ map: gtex });
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(3.4, 36), gmat);
+    disc.userData.mat = gmat; disc.userData.tex = gtex;
     disc.rotation.x = -Math.PI / 2; disc.position.set(cur.hx, gy + 0.015, cur.hz); addMesh(disc, false, true);
     const rim = new THREE.Mesh(new THREE.CircleGeometry(HOLE_R + 0.18, 28), mat.cupRim);
     rim.rotation.x = -Math.PI / 2; rim.position.set(cur.hx, gy + 0.03, cur.hz); addMesh(rim);
@@ -994,9 +1129,7 @@
     }
     for (const o of cur.obstacles) {
       if (o.kind === 'tree') {
-        const t = addMesh(new THREE.Mesh(geo.trunk, mat.trunk), true, true); t.position.set(o.x, o.top + 0.6, o.z);
-        const a = addMesh(new THREE.Mesh(geo.leafA, mat.leafA), true, true); a.position.set(o.x, o.top + 1.9, o.z);
-        const b = addMesh(new THREE.Mesh(geo.leafB, mat.leafB), true, true); b.position.set(o.x, o.top + 3.0, o.z);
+        addTree(T, o.x, o.top, o.z, 1, Math.round(o.x + o.z * 3), true);
       } else if (o.kind === 'rock') {
         const r = addMesh(new THREE.Mesh(geo.rock, mat.rock), true, true); r.position.set(o.x, o.top + 0.45, o.z); r.rotation.set(0.3, o.x, 0.2); r.scale.set(1.1, 0.8, 1);
       } else {
@@ -1009,7 +1142,7 @@
     }
     cur.hills.forEach((m, i) => {
       const d = m.kind === 'mount'
-        ? addMesh(new THREE.Mesh(mountainGeometry(m.r, m.h, 6, 14, i * 17 + game.holeIndex), mat.mount), true, true)
+        ? addMesh(new THREE.Mesh(mountainGeometry(m.r, m.h, 6, 14, i * 17 + game.holeIndex, T), mat.mount), true, true)
         : addMesh(new THREE.Mesh(domeGeometry(m.r, m.h, 8, 28), mat.hill), true, true);
       d.position.set(m.x, m.top + 0.01, m.z);
     });
@@ -1034,14 +1167,62 @@
     for (const is of cur.islets) {
       meshBox(box(is.x - is.sz / 2, is.y - 2.6, is.z - is.sz / 2, is.x + is.sz / 2, is.y - 0.3, is.z + is.sz / 2), mat.dirt, false, false);
       meshBox(box(is.x - is.sz / 2 - 0.1, is.y - 0.3, is.z - is.sz / 2 - 0.1, is.x + is.sz / 2 + 0.1, is.y, is.z + is.sz / 2 + 0.1), mat.turfSide, false, true);
-      if (is.hill) { const d = is.hill.mount ? addMesh(new THREE.Mesh(mountainGeometry(is.hill.r, is.hill.h, 5, 12, Math.round(is.x * 3 + is.z)), mat.mount), false, true) : addMesh(new THREE.Mesh(domeGeometry(is.hill.r, is.hill.h, 6, 20), mat.hill), false, true); d.position.set(is.x, is.y + 0.01, is.z); }
+      if (is.hill) { const d = is.hill.mount ? addMesh(new THREE.Mesh(mountainGeometry(is.hill.r, is.hill.h, 5, 12, Math.round(is.x * 3 + is.z), T), mat.mount), false, true) : addMesh(new THREE.Mesh(domeGeometry(is.hill.r, is.hill.h, 6, 20), mat.hill), false, true); d.position.set(is.x, is.y + 0.01, is.z); }
       for (const t of is.trees) {
         const uu = is.hill ? Math.min(1, Math.hypot(t.dx, t.dz) / is.hill.r) : 1;
         const hb = !is.hill ? 0 : is.hill.mount ? is.hill.h * Math.pow(1 - uu, 1.5) * 0.9 : is.hill.h * Math.pow(1 - uu * uu, 2);
-        const tx = is.x + t.dx, tz = is.z + t.dz, ty = is.y + hb;
-        const tr = addMesh(new THREE.Mesh(geo.trunk, mat.trunk), false, false); tr.position.set(tx, ty + 0.6 * t.s, tz); tr.scale.setScalar(t.s);
-        const la = addMesh(new THREE.Mesh(geo.leafA, mat.leafA), false, false); la.position.set(tx, ty + 1.9 * t.s, tz); la.scale.setScalar(t.s);
-        const lb = addMesh(new THREE.Mesh(geo.leafB, mat.leafB), false, false); lb.position.set(tx, ty + 3.0 * t.s, tz); lb.scale.setScalar(t.s);
+        const px = is.x + t.dx, pz = is.z + t.dz, ty = is.y + hb;
+        addTree(T, px, ty, pz, t.s, Math.round(px * 7 + pz), false);
+      }
+    }
+    // real grass: thousands of little blades, thicker away from the line of play, plus wildflowers in the rough
+    {
+      const rnd = lcg(31 + game.holeIndex * 97);
+      const tufts = [], flowers = [];
+      const blocked = (x, z) => {
+        for (const pl of cur.pools) if (Math.hypot(x - pl.x, z - pl.z) < pl.r + 0.5) return true;
+        for (const pd of cur.pads) if (Math.hypot(x - pd.x, z - pd.z) < 1.4) return true;
+        for (const a of cur.launchers) if (Math.hypot(x - a.x, z - a.z) < 1.4) return true;
+        for (const bp of cur.bumpers) if (Math.hypot(x - bp.x, z - bp.z) < bp.r + 0.3) return true;
+        for (const sp of cur.spinners) if (Math.hypot(x - sp.x, z - sp.z) < sp.len / 2 + 0.6) return true;
+        return false;
+      };
+      for (const p of cur.plats) {
+        const n = Math.round((p.maxX - p.minX) * (p.maxZ - p.minZ) * 5);
+        for (let i = 0; i < n && tufts.length < 3200; i++) {
+          const x = mix(p.minX + 0.3, p.maxX - 0.3, rnd()), z = mix(p.minZ + 0.3, p.maxZ - 0.3, rnd());
+          if (platTopAt(cur, x, z) !== p.top) continue;
+          const dp = distToPath(x, z);
+          if (rnd() > clamp((dp - 0.6) / 4.5, 0.14, 1)) continue;
+          if (Math.hypot(x - cur.hx, z - cur.hz) < 3.7 || Math.hypot(x - cur.tx, z - cur.tz) < 1.3) continue;
+          const sf = surfaceAt(x, z); if (sf === 'sand' || sf === 'ice') continue;
+          if (blocked(x, z)) continue;
+          const m = moundAt(x, z); if (m.kind === 'mount' && m.h > 0.45) continue;
+          tufts.push([x, p.top + m.h, z, 0.34 + rnd() * 0.4, rnd() * Math.PI, rnd() < 0.5 ? T.grass[3] : T.grass[1]]);
+          if (dp > 2.4 && rnd() < 0.05) flowers.push([x + 0.15, p.top + m.h + 0.12, z + 0.1, T.flowers[Math.floor(rnd() * T.flowers.length)]]);
+        }
+      }
+      for (const is of cur.islets) {
+        const n = Math.round(is.sz * is.sz * 2);
+        for (let i = 0; i < n && tufts.length < 3200; i++) {
+          const dx = (rnd() - 0.5) * is.sz * 0.9, dz = (rnd() - 0.5) * is.sz * 0.9;
+          const uu = is.hill ? Math.min(1, Math.hypot(dx, dz) / is.hill.r) : 1;
+          if (is.hill && is.hill.mount && uu < 0.8) continue;
+          const hb = !is.hill ? 0 : is.hill.mount ? is.hill.h * Math.pow(1 - uu, 1.5) : is.hill.h * Math.pow(1 - uu * uu, 2);
+          tufts.push([is.x + dx, is.y + hb, is.z + dz, 0.4 + rnd() * 0.45, rnd() * Math.PI, rnd() < 0.5 ? T.grass[3] : T.grass[1]]);
+        }
+      }
+      if (tufts.length) {
+        const im = new THREE.InstancedMesh(geo.blade, mat.tuft, tufts.length);
+        const up = new THREE.Vector3(0, 1, 0);
+        tufts.forEach((t, i) => { _v3.set(t[0], t[1], t[2]); _q.setFromAxisAngle(up, t[4]); _s3.set(t[3], t[3], t[3]); _m4.compose(_v3, _q, _s3); im.setMatrixAt(i, _m4); im.setColorAt(i, _col.set(t[5])); });
+        im.receiveShadow = true;
+        addMesh(im, false, true);
+      }
+      if (flowers.length) {
+        const im = new THREE.InstancedMesh(geo.flower, mat.flower, flowers.length);
+        flowers.forEach((f, i) => { _v3.set(f[0], f[1], f[2]); _q.identity(); _s3.set(1, 0.7, 1); _m4.compose(_v3, _q, _s3); im.setMatrixAt(i, _m4); im.setColorAt(i, _col.set(f[3])); });
+        addMesh(im, false, false);
       }
     }
     cloudGroup.children.forEach((c, i) => {
@@ -1191,7 +1372,7 @@
       cam.pos.copy(introFrom.pos); cam.look.copy(introFrom.look);
       skipEl.hidden = false;
       holeTitleName.textContent = cur.def.name;
-      holeTitleSub.textContent = `Hole ${i + 1} · Par ${cur.def.par}`;
+      holeTitleSub.textContent = `Hole ${i + 1} · ${THEMES[cur.def.theme].label} · Par ${cur.def.par}`;
       holeTitle.classList.remove('hide');
     } else {
       game.state = 'idle';
@@ -1441,7 +1622,7 @@
     menuEl.classList.remove('hide');
     let best = null;
     try { const v = parseInt(localStorage.getItem('pocketGolf.best'), 10); if (Number.isFinite(v)) best = v; } catch (e) { /* optional */ }
-    menuBest.innerHTML = best === null ? `Par ${TOTAL_PAR} <strong>9 holes</strong>` : `Best round <strong>${best}</strong>`;
+    menuBest.innerHTML = best === null ? `Par ${TOTAL_PAR} <strong>${HOLES.length} holes</strong>` : `Best round <strong>${best}</strong>`;
     menuSound.textContent = game.muted ? 'Sound off' : 'Sound on';
   }
   function startFromMenu() {
@@ -1455,7 +1636,7 @@
     introDur = 1.8 + cur.pathLen[cur.pathLen.length - 1] / 60;
     skipEl.hidden = false;
     holeTitleName.textContent = cur.def.name;
-    holeTitleSub.textContent = `Hole ${game.holeIndex + 1} · Par ${cur.def.par}`;
+    holeTitleSub.textContent = `Hole ${game.holeIndex + 1} · ${THEMES[cur.def.theme].label} · Par ${cur.def.par}`;
     holeTitle.classList.remove('hide');
   }
   menuEl.addEventListener('pointerdown', (e) => { if (menuSound.contains(e.target)) return; e.preventDefault(); startFromMenu(); });
@@ -1895,17 +2076,24 @@
       if (best === null || total < best) localStorage.setItem('pocketGolf.best', String(total));
     } catch (e) { /* storage is optional */ }
     const isNewBest = best === null || total < best;
-    const cells = (fn) => HOLES.map((h, i) => `<td>${fn(h, i)}</td>`).join('');
+    const half = Math.ceil(HOLES.length / 2);
+    const card = (from, to, label) => {
+      const idx = HOLES.slice(from, to).map((h, k) => from + k);
+      const cells = (fn) => idx.map((i) => `<td>${fn(HOLES[i], i)}</td>`).join('');
+      const par = idx.reduce((a, i) => a + HOLES[i].par, 0), you = idx.reduce((a, i) => a + game.scores[i], 0);
+      return `<table class="scorecard" aria-label="Scorecard ${label}">
+        <tr><th>Hole</th>${cells((h, i) => i + 1)}<td>${label}</td></tr>
+        <tr><th>Par</th>${cells((h) => h.par)}<td>${par}</td></tr>
+        <tr><th>You</th>${cells((h, i) => `<span class="${markClass(game.scores[i], h.par)}">${game.scores[i]}</span>`)}<td>${you}</td></tr>
+      </table>`;
+    };
     const body = `
-      <table class="scorecard" aria-label="Scorecard">
-        <tr><th>Hole</th>${cells((h, i) => i + 1)}<td>Tot</td></tr>
-        <tr><th>Par</th>${cells((h) => h.par)}<td>${TOTAL_PAR}</td></tr>
-        <tr><th>You</th>${cells((h, i) => `<span class="${markClass(game.scores[i], h.par)}">${game.scores[i]}</span>`)}<td>${total}</td></tr>
-      </table>
+      ${card(0, half, 'Out')}
+      ${card(half, HOLES.length, 'In')}
       <p class="legend">Circle for birdie, double circle for eagle, square for bogey, double square for worse.</p>
       <p class="best">${isNewBest ? '<strong>New best round</strong>' : `Your best round is <strong>${best}</strong>`}</p>`;
     showOverlay({
-      eyebrow: 'Round complete · 9 holes',
+      eyebrow: `Round complete · ${HOLES.length} holes`,
       title: d === 0 ? 'Level par' : (d < 0 ? `${-d} under par` : `${d} over par`),
       gold: d < 0,
       sub: `${total} strokes, par ${TOTAL_PAR}`,
