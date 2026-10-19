@@ -62,7 +62,7 @@
 
   .hud {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: end;
     gap: 8px;
     padding-block: 10px 8px;
@@ -83,9 +83,9 @@
     letter-spacing: .01em;
   }
   .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .actions { display: flex; gap: 8px; align-self: center; }
+  .actions { display: flex; gap: 6px; align-self: center; }
   .icon-btn {
-    width: 42px; height: 42px;
+    width: 38px; height: 38px;
     border-radius: 13px;
     border: 1px solid var(--line);
     background: var(--panel);
@@ -191,7 +191,7 @@
 
   .clubs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     gap: 10px;
     padding-block: 10px 0;
   }
@@ -428,6 +428,57 @@
   @keyframes logoIn { from { transform: scale(.6) translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .tap { animation: none; } .logo { animation: none; } }
 
+  .club.undo { padding: 9px 12px; gap: 6px; }
+  .club.undo .club-name { font-size: 15px; }
+  .club.undo:disabled { opacity: .35; }
+  .stat-value.under { color: var(--accent); }
+  .stat-value.over { color: #ff8a7a; }
+  .stat-value.bump { animation: bump .35s cubic-bezier(.2, .9, .3, 1.4); }
+  @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+  .camctl {
+    position: absolute; right: 10px; bottom: 12px;
+    display: flex; gap: 6px;
+    transition: opacity .25s;
+  }
+  .camctl.off { opacity: 0; pointer-events: none; }
+  .cam-btn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .25);
+    background: rgba(10, 24, 16, .6);
+    color: #fff;
+    display: grid; place-items: center;
+    cursor: pointer; padding: 0;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .cam-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .cam-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .cam-btn:active { transform: scale(.94); }
+  .stars { color: var(--accent); letter-spacing: .08em; font-size: 15px; }
+  .stars .dim { color: rgba(255, 255, 255, .22); }
+  .stars.big { font-size: 30px; margin: 0 0 10px; letter-spacing: .12em; }
+  .board-card { max-width: 380px; padding: 20px 16px 16px; text-align: left; }
+  .board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .board-head h2 { font-size: 30px; margin: 0; }
+  .board-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .board-sum div { background: var(--panel-2); border-radius: 12px; padding: 8px 10px; }
+  .board-sum .l { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .board-sum .v { font-family: var(--display); font-size: 22px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .board-scroll { max-height: 42vh; overflow-y: auto; border-radius: 12px; border: 1px solid var(--line); }
+  .board-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; table-layout: fixed; }
+  .board-table col.c0 { width: 24px; } .board-table col.c2, .board-table col.c3, .board-table col.c4 { width: 40px; } .board-table col.c5 { width: 52px; }
+  .board-table th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 5px; font-weight: 800; overflow: hidden; }
+  .board-table td { padding: 7px 5px; border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board-table td .stars { font-size: 12px; letter-spacing: 0; }
+  .board-table td.n { color: var(--muted); font-weight: 800; }
+  .board-table td.name { overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+  .board-table tr.cur td { background: rgba(245, 200, 76, .1); }
+  .board-table td.r { text-align: center; }
+  .board-table .best { color: var(--accent); font-weight: 800; }
+  .board-row-btns { display: flex; gap: 10px; margin-top: 14px; }
+  .btn.ghost { background: var(--panel-2); color: var(--ink); box-shadow: 0 5px 0 rgba(0, 0, 0, .35); }
+
   @keyframes pop {
     from { transform: scale(.86) translateY(14px); opacity: 0; }
     to { transform: none; opacity: 1; }
@@ -444,7 +495,7 @@
     <div class="stat">
       <span class="stat-label">Hole</span>
       <span class="stat-value" id="hudHole">1</span>
-      <span class="stat-sub" id="hudPar">of 9 · Par 2</span>
+      <span class="stat-sub" id="hudPar">Par 3</span>
     </div>
     <div class="stat">
       <span class="stat-label">Strokes</span>
@@ -454,7 +505,7 @@
     <div class="stat">
       <span class="stat-label">To par</span>
       <span class="stat-value" id="hudScore">E</span>
-      <span class="stat-sub" id="hudScoreSub">0 holes done</span>
+      <span class="stat-sub" id="hudScoreSub">0 of 12 done</span>
     </div>
     <div class="actions">
       <button class="icon-btn" id="btnSound" type="button" aria-label="Sound on" aria-pressed="true">
@@ -462,6 +513,9 @@
       </button>
       <button class="icon-btn" id="btnRestart" type="button" aria-label="Restart this hole">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v5h5"/></svg>
+      </button>
+      <button class="icon-btn" id="btnBoard" type="button" aria-label="Scoreboard">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4"/><path d="M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg>
       </button>
     </div>
   </header>
@@ -477,6 +531,11 @@
     <div class="carry" id="carry">0<small> m</small></div>
     <div class="hole-title hide" id="holeTitle"><div class="n" id="holeTitleName">First Bend</div><div class="s" id="holeTitleSub">Hole 1 · Par 2</div></div>
     <div class="pops" id="pops"></div>
+    <div class="camctl off" id="camctl">
+      <button class="cam-btn" id="camLeft" type="button" aria-label="Rotate camera left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v5h5"/></svg></button>
+      <button class="cam-btn" id="camTop" type="button" aria-label="Top-down view" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="15" r="1.6"/><path d="M15 8v3"/><path d="M15 8l3 1-3 1"/></svg></button>
+      <button class="cam-btn" id="camRight" type="button" aria-label="Rotate camera right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg></button>
+    </div>
     <div class="skip" id="skip" hidden>Tap to skip</div>
     <div class="stage-msg" id="stageMsg" hidden><p>The 3D engine could not load. Check your connection and reload the page.</p></div>
   </main>
@@ -490,9 +549,26 @@
       <svg viewBox="0 0 26 22" aria-hidden="true"><path d="M3 15h18"/><path d="M17 11l4 4-4 4"/><circle cx="6" cy="15" r="2.5"/></svg>
       <span class="club-text"><span class="club-name">Putt</span><span class="club-desc">Roll it</span></span>
     </button>
+    <button class="club undo" id="btnUndo" type="button" disabled aria-label="Mulligan: retake the last shot">
+      <svg viewBox="0 0 26 22" aria-hidden="true"><path d="M9 6L4 11l5 5"/><path d="M4 11h11a6 6 0 0 1 0 12"/></svg>
+      <span class="club-text"><span class="club-name">Undo</span><span class="club-desc" id="undoDesc">1 left</span></span>
+    </button>
   </div>
 
   <footer class="tip" id="tip"><strong>Drag back</strong> anywhere on the screen, then let go to hit. No walls: the edge is the hazard</footer>
+
+  <div class="overlay" id="board" hidden>
+    <div class="card board-card" role="dialog" aria-label="Scoreboard">
+      <div class="board-head"><h2>Scoreboard</h2><span class="stars" id="boardStars"></span></div>
+      <div class="board-sum">
+        <div><div class="l">This round</div><div class="v" id="boardRound">E</div></div>
+        <div><div class="l">Best round</div><div class="v" id="boardBest">–</div></div>
+        <div><div class="l">Stars</div><div class="v" id="boardStarCount">0</div></div>
+      </div>
+      <div class="board-scroll"><table class="board-table" id="boardTable"></table></div>
+      <div class="board-row-btns"><button class="btn ghost" id="boardClose" type="button">Close</button></div>
+    </div>
+  </div>
 
   <div class="overlay" id="overlay" hidden>
     <div class="card" role="dialog" aria-live="polite">
@@ -546,6 +622,9 @@
   const ov = { eyebrow: $('ovEyebrow'), title: $('ovTitle'), sub: $('ovSub'), body: $('ovBody'), btn: $('ovBtn') };
   const btnSound = $('btnSound');
   const btnRestart = $('btnRestart');
+  const btnBoard = $('btnBoard'), boardEl = $('board'), boardTable = $('boardTable'), boardRound = $('boardRound'), boardBest = $('boardBest'), boardStarCount = $('boardStarCount'), boardStars = $('boardStars'), boardClose = $('boardClose');
+  const btnUndo = $('btnUndo'), undoDesc = $('undoDesc');
+  const camctl = $('camctl'), camLeft = $('camLeft'), camRight = $('camRight'), camTop = $('camTop');
   const restartIcon = btnRestart.querySelector('svg');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -563,8 +642,8 @@
   const PLAT_THICK = 3.4;
   const WALL_H = 0.9, WALL_T = 0.5;
   const SURF = {
-    turf: { decel: 7, bounce: 0.42, grip: 0.72, label: 'Turf', cls: '' },
-    green: { decel: 6, bounce: 0.42, grip: 0.72, label: 'Green', cls: 'green' },
+    turf: { decel: 7, bounce: 0.4, grip: 0.6, label: 'Turf', cls: '' },
+    green: { decel: 6, bounce: 0.4, grip: 0.62, label: 'Green', cls: 'green' },
     sand: { decel: 30, bounce: 0.05, grip: 0.95, label: 'Sand', cls: 'sand' },
     ice: { decel: 1.5, bounce: 0.3, grip: 0.92, label: 'Ice', cls: 'ice' },
   };
@@ -1281,12 +1360,27 @@
     }
     return top;
   }
+  function clearSight(out) {
+    const by = ball.y + 0.5;
+    let need = out.pos.y;
+    for (let i = 1; i <= 6; i++) {
+      const t = i / 7;
+      const px = mix(out.pos.x, ball.x, t), pz = mix(out.pos.z, ball.z, t);
+      const fl = cameraFloor(px, pz);
+      if (fl === -Infinity) continue;
+      const req = (fl + 1.4 - by * t) / (1 - t);
+      if (req > need) need = req;
+    }
+    out.pos.y = Math.min(need, out.pos.y + 14);
+  }
   function aimPose(out, fx, fz, zoom) {
-    const D = 10.5 + zoom, H = 6.2 + zoom * 0.4;
+    const putt = game.mode === 'putt';
+    const D = (putt ? 7.5 : 10.5) + zoom, H = (putt ? 4.2 : 6.2) + zoom * 0.4;
     out.pos.set(ball.x - fx * D, ball.y + H, ball.z - fz * D);
     const fl = cameraFloor(out.pos.x, out.pos.z);
     if (out.pos.y < fl + 2) out.pos.y = fl + 2;
     out.look.set(ball.x + fx * 5, ball.y + 0.3, ball.z + fz * 5);
+    clearSight(out);
   }
   function chasePose(out) {
     const sp = Math.hypot(ball.vx, ball.vz);
@@ -1296,10 +1390,31 @@
     out.pos.set(ball.x - cam.fx * D, ball.y + H, ball.z - cam.fz * D);
     const fl = cameraFloor(out.pos.x, out.pos.z);
     if (out.pos.y < fl + 2) out.pos.y = fl + 2;
-    out.look.set(ball.x + cam.fx * 2, ball.y + 0.3, ball.z + cam.fz * 2);
+    out.look.set(ball.x + cam.fx * 2 + ball.vx * 0.12, ball.y + 0.3 + Math.max(-2, Math.min(2, ball.vy * 0.08)), ball.z + cam.fz * 2 + ball.vz * 0.12);
+    clearSight(out);
   }
   function rotate(fx, fz, a) { const c = Math.cos(a), s = Math.sin(a); return { x: fx * c - fz * s, z: fx * s + fz * c }; }
-  let orbitT = 0;
+  let orbitT = 0, camYawOff = 0, camYawNow = 0, topView = false, fovNow = 50, doneT = 0;
+  const _corner = new THREE.Vector3();
+  function topPose(out) {
+    const b = cur.bounds;
+    const cx = (b.minX + b.maxX) / 2, cy = (b.minY + b.maxY) / 2, cz = (b.minZ + b.maxZ) / 2;
+    const pitch = 66 * Math.PI / 180, dy = Math.sin(pitch), dz = Math.cos(pitch);
+    const corners = [];
+    for (const x of [b.minX - 1, b.maxX + 1]) for (const y of [b.minY, b.maxY]) for (const z of [b.minZ - 1, b.maxZ + 1]) corners.push([x, y, z]);
+    let lo = 6, hi = 220;
+    const savePos = camera.position.clone(), saveQ = camera.quaternion.clone();
+    for (let it = 0; it < 16; it++) {
+      const d = (lo + hi) / 2;
+      camera.position.set(cx, cy + dy * d, cz + dz * d); camera.lookAt(cx, cy, cz); camera.updateMatrixWorld();
+      let ok = true;
+      for (const c of corners) { _corner.set(c[0], c[1], c[2]).project(camera); if (Math.abs(_corner.x) > 0.86 || _corner.y > 0.78 || _corner.y < -0.9) { ok = false; break; } }
+      if (ok) hi = d; else lo = d;
+    }
+    camera.position.copy(savePos); camera.quaternion.copy(saveQ);
+    out.pos.set(cx, cy + dy * hi, cz + dz * hi);
+    out.look.set(cx, cy, cz);
+  }
   function updateCamera(dt) {
     if (game.state === 'menu') {
       orbitT += dt;
@@ -1320,18 +1435,32 @@
       if (game.state === 'shot') chasePose(want);
       const k = 1 - Math.exp(-dt * 5);
       cam.pos.lerp(want.pos, k); cam.look.lerp(want.look, k);
+    } else if (game.state === 'holeDone') {
+      // slow victory lap around the flag
+      doneT += dt;
+      const a = doneT * 0.7 + Math.PI / 2;
+      want.pos.set(cur.hx + Math.cos(a) * 7.5, cur.holePlat.top + 4.5, cur.hz + Math.sin(a) * 7.5);
+      const fl = cameraFloor(want.pos.x, want.pos.z); if (want.pos.y < fl + 2) want.pos.y = fl + 2;
+      want.look.set(cur.hx, cur.holePlat.top + 0.8, cur.hz);
+      const k = 1 - Math.exp(-dt * 2.5);
+      cam.pos.lerp(want.pos, k); cam.look.lerp(want.look, k);
     } else {
       routeForward(ball.x, ball.z, _fwd);
       const k0 = 1 - Math.exp(-dt * 3.5);
       cam.fx = mix(cam.fx, _fwd.x, k0); cam.fz = mix(cam.fz, _fwd.z, k0);
       const l = Math.hypot(cam.fx, cam.fz) || 1; cam.fx /= l; cam.fz /= l;
-      let yaw = 0, zoom = 0;
-      if (game.state === 'aiming' && aim) { yaw = aimYaw * 0.35; zoom = aimPower * 2.5; }
-      const r = rotate(cam.fx, cam.fz, yaw);
-      aimPose(want, r.x, r.z, zoom);
+      camYawNow = mix(camYawNow, camYawOff, 1 - Math.exp(-dt * 5));
+      let yaw = camYawNow, zoom = 0;
+      if (game.state === 'aiming' && aim) { yaw += aimYaw * 0.35; zoom = aimPower * 2.5; }
+      if (topView) topPose(want);
+      else { const r = rotate(cam.fx, cam.fz, yaw); aimPose(want, r.x, r.z, zoom); }
       const k = 1 - Math.exp(-dt * 6);
       cam.pos.lerp(want.pos, k); cam.look.lerp(want.look, k);
     }
+    // a wider lens in flight, a tighter one for putting
+    const fovWant = game.state === 'shot' ? 58 : (game.mode === 'putt' && (game.state === 'idle' || game.state === 'aiming') && !topView) ? 46 : 50;
+    const nf = mix(fovNow, fovWant, 1 - Math.exp(-dt * 4));
+    if (Math.abs(nf - fovNow) > 0.01) { fovNow = nf; camera.fov = fovNow; camera.updateProjectionMatrix(); }
     camera.position.copy(cam.pos);
     if (shake.t > 0) {
       shake.t -= dt;
@@ -1343,7 +1472,12 @@
   function kick(amp) { if (reduceMotion) return; shake.t = 0.25; shake.amp = amp; }
 
   // ---------- state ----------
-  const game = { holeIndex: 0, strokes: 0, scores: [], state: 'intro', muted: false, mode: 'chip', shots: 0 };
+  const game = { holeIndex: 0, strokes: 0, scores: [], state: 'intro', muted: false, mode: 'chip', shots: 0, mulligans: 1, stars: [] };
+  let undo = null;
+  let holeBest = [];
+  try { const v = JSON.parse(localStorage.getItem('pocketGolf.holeBest') || '[]'); if (Array.isArray(v)) holeBest = v; } catch (e) { /* optional */ }
+  function starsFor(strokes, par) { const d = strokes - par; return d <= -1 ? 3 : d === 0 ? 2 : d === 1 ? 1 : 0; }
+  function starsHtml(n) { let h = ''; for (let i = 0; i < 3; i++) h += `<span class="${i < n ? '' : 'dim'}">★</span>`; return h; }
   const ball = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: true, lastX: 0, lastY: 0, lastZ: 0, shotT: 0, padCool: 0, wasGrounded: true, airT: 0, maxH: 0, startPlat: null };
   let aim = null, aimBase = { x: 0, z: -1 }, aimPower = 0;
   let time = 0, introT = 0, introDur = 2.2, sinkT = 0, penaltyT = 0, squash = 0, trailT = 0;
@@ -1359,9 +1493,10 @@
     ball.vx = ball.vy = ball.vz = 0; ball.grounded = true; ball.padCool = 0;
     ball.lastX = ball.x; ball.lastY = ball.y; ball.lastZ = ball.z;
     ballMesh.visible = true; ballMesh.scale.set(1, 1, 1);
-    game.strokes = 0;
+    game.strokes = 0; game.mulligans = 1; undo = null; camYawOff = 0; camYawNow = 0; topView = false; camTop.setAttribute('aria-pressed', 'false'); doneT = 0;
     aim = null; hideAim();
     setMode('chip');
+    refreshUndo();
     routeForward(ball.x, ball.z, _fwd); cam.fx = _fwd.x; cam.fz = _fwd.z;
     aimPose(want, cam.fx, cam.fz, 0);
     if (withIntro && !reduceMotion) {
@@ -1396,12 +1531,15 @@
   function updateHud() {
     const par = cur.def.par;
     hud.hole.textContent = String(game.holeIndex + 1);
-    hud.par.textContent = `of ${HOLES.length} · Par ${par}`;
+    hud.par.textContent = `Par ${par}`;
+    if (hud.strokes.textContent !== String(game.strokes)) { hud.strokes.classList.remove('bump'); void hud.strokes.offsetWidth; hud.strokes.classList.add('bump'); }
     hud.strokes.textContent = String(game.strokes);
+    const cd = completedDiff();
+    hud.score.classList.toggle('under', cd < 0); hud.score.classList.toggle('over', cd > 0);
     hud.strokesSub.textContent = game.strokes === 0 ? 'this hole' : (game.strokes <= par ? `par is ${par}` : `${game.strokes - par} over`);
     hud.score.textContent = fmtPar(completedDiff());
     const done = game.scores.filter((s) => s != null).length;
-    hud.scoreSub.textContent = `${done} hole${done === 1 ? '' : 's'} done`;
+    hud.scoreSub.textContent = `${done} of ${HOLES.length} done`;
   }
   function updatePin() {
     const d = Math.round(Math.hypot(cur.hx - ball.x, cur.hz - ball.z));
@@ -1568,7 +1706,7 @@
     e.preventDefault();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
     aim = { id: e.pointerId, sx: e.clientX, sy: e.clientY, cx: e.clientX, cy: e.clientY };
-    aimBase = { x: cam.fx, z: cam.fz };
+    if (topView) aimBase = { x: 0, z: -1 }; else { const r = rotate(cam.fx, cam.fz, camYawNow); aimBase = { x: r.x, z: r.z }; }
     aimYaw = 0; aimPower = 0; lastTickP = 0;
     game.state = 'aiming';
   });
@@ -1603,15 +1741,58 @@
     ball.lastX = ball.x; ball.lastY = ball.y; ball.lastZ = ball.z;
     ball.shotT = 0; ball.padCool = 0; ball.airT = 0; ball.maxH = 0;
     ball.startPlat = cur.plats.find((pl) => inPlat(pl, ball.x, ball.z) && Math.abs(ball.y - R - pl.top) < 0.3) || null;
-    cam.fx = dx; cam.fz = dz;
+    undo = { x: ball.x, y: ball.y, z: ball.z, strokes: game.strokes, mode: game.mode };
+    cam.fx = dx; cam.fz = dz; camYawOff = 0; camYawNow = 0;
     game.strokes++; game.shots++;
     game.state = 'shot';
+    refreshUndo();
     updateHud();
     if (game.mode === 'putt') { sfx.putt(p); spawn(ball.x, ball.y - 0.3, ball.z, { n: 5, speed: 2, up: 2, life: 0.4, size: 0.14, color: 0xd9f7c8 }); }
     else { sfx.chip(p); spawn(ball.x, ball.y - 0.3, ball.z, { n: 10, speed: 3, up: 4, life: 0.5, size: 0.16, colors: [0xd9f7c8, 0xffffff] }); kick(0.08 + p * 0.1); }
     buzz(12);
   }
   function endIntro() { game.state = 'idle'; skipEl.hidden = true; holeTitle.classList.add('hide'); }
+  camLeft.addEventListener('click', () => { initAudio(); camYawOff -= Math.PI / 4; topView = false; camTop.setAttribute('aria-pressed', 'false'); sfx.tick(); });
+  camRight.addEventListener('click', () => { initAudio(); camYawOff += Math.PI / 4; topView = false; camTop.setAttribute('aria-pressed', 'false'); sfx.tick(); });
+  camTop.addEventListener('click', () => { initAudio(); topView = !topView; camTop.setAttribute('aria-pressed', String(topView)); sfx.tick(); });
+
+  // ---------- mulligan ----------
+  function refreshUndo() {
+    const ok = game.state === 'idle' && undo && game.mulligans > 0;
+    btnUndo.disabled = !ok;
+    undoDesc.textContent = game.mulligans > 0 ? `${game.mulligans} left` : 'used';
+  }
+  btnUndo.addEventListener('click', () => {
+    if (btnUndo.disabled) return;
+    initAudio();
+    ball.x = undo.x; ball.y = undo.y; ball.z = undo.z;
+    ball.vx = ball.vy = ball.vz = 0; ball.grounded = true;
+    ballMesh.visible = true;
+    game.strokes = undo.strokes; game.mulligans--; undo = null;
+    setMode(undo ? undo.mode : game.mode);
+    autoMode(); updateHud(); refreshUndo();
+    sfx.tick(); pop('Mulligan!', 'small');
+    toast('<strong>Shot taken back.</strong> No penalty', 1800);
+  });
+
+  // ---------- scoreboard ----------
+  function bestRound() { try { const v = parseInt(localStorage.getItem('pocketGolf.best'), 10); return Number.isFinite(v) ? v : null; } catch (e) { return null; } }
+  function renderBoard() {
+    const rows = HOLES.map((h, i) => {
+      const r = game.scores[i], b = holeBest[i];
+      const st = r != null ? starsFor(r, h.par) : (b != null ? starsFor(b, h.par) : 0);
+      return `<tr class="${i === game.holeIndex ? 'cur' : ''}"><td class="n">${i + 1}</td><td class="name">${h.name}</td><td class="r">${h.par}</td><td class="r">${r != null ? r : (i === game.holeIndex && game.strokes ? game.strokes + '…' : '–')}</td><td class="r ${b != null && r != null && r <= b ? 'best' : ''}">${b != null ? b : '–'}</td><td class="r"><span class="stars">${starsHtml(st)}</span></td></tr>`;
+    }).join('');
+    boardTable.innerHTML = `<colgroup><col class="c0"><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup><tr><th>#</th><th>Hole</th><th>Par</th><th>Rnd</th><th>Best</th><th>Stars</th></tr>${rows}`;
+    boardRound.textContent = fmtPar(completedDiff());
+    const br = bestRound(); boardBest.textContent = br === null ? '–' : String(br);
+    const total = HOLES.reduce((a, h, i) => a + (holeBest[i] != null ? starsFor(holeBest[i], h.par) : 0), 0);
+    boardStarCount.textContent = `${total} / ${HOLES.length * 3}`;
+    const roundStars = game.stars.reduce((a, v) => a + (v || 0), 0);
+    boardStars.innerHTML = `${roundStars} ★ this round`;
+  }
+  btnBoard.addEventListener('click', () => { if (game.state === 'menu') return; initAudio(); renderBoard(); boardEl.hidden = false; });
+  boardClose.addEventListener('click', () => { boardEl.hidden = true; });
 
   // ---------- title screen ----------
   function showMenu(holeIndex) {
@@ -1963,6 +2144,7 @@
     if (game.strokes >= cur.def.par + MAX_OVER_PAR) { finishHole(true); return; }
     game.state = 'idle';
     autoMode();
+    refreshUndo();
   }
 
   // ---------- aim preview ----------
@@ -2046,12 +2228,18 @@
   }
   function finishHole(pickedUp) {
     game.scores[game.holeIndex] = game.strokes;
-    game.state = 'holeDone';
-    updateHud();
+    game.state = 'holeDone'; doneT = 0;
+    updateHud(); refreshUndo();
     const par = cur.def.par;
     const last = game.holeIndex === HOLES.length - 1;
     const d = game.strokes - par;
+    const st = pickedUp ? 0 : starsFor(game.strokes, par);
+    game.stars[game.holeIndex] = st;
+    const prevBest = holeBest[game.holeIndex];
+    const record = !pickedUp && (prevBest == null || game.strokes < prevBest);
+    if (record) { holeBest[game.holeIndex] = game.strokes; try { localStorage.setItem('pocketGolf.holeBest', JSON.stringify(holeBest)); } catch (e) { /* optional */ } }
     if (!pickedUp) pop(scoreLabel(game.strokes, par), d < 0 ? 'gold' : '');
+    if (record && prevBest != null) setTimeout(() => pop('Hole record!', 'gold small'), 700);
     setTimeout(() => {
       showOverlay({
         eyebrow: `Hole ${game.holeIndex + 1} · ${cur.def.name} · Par ${par}`,
@@ -2060,10 +2248,11 @@
         sub: pickedUp
           ? `Max ${game.strokes} strokes on this hole`
           : `${game.strokes} stroke${game.strokes === 1 ? '' : 's'}, ${d === 0 ? 'level par' : fmtPar(d) + ' on this hole'}`,
+        body: `<div class="stars big">${starsHtml(st)}</div>${record && prevBest != null ? '<p class="best"><strong>New hole record</strong></p>' : prevBest != null ? `<p class="best">Your best here is <strong>${Math.min(prevBest, game.strokes)}</strong></p>` : ''}`,
         button: last ? 'See the scorecard' : 'Next hole',
         onClick: () => { if (last) finishCourse(); else loadHole(game.holeIndex + 1, true); },
       });
-    }, pickedUp ? 250 : 1100);
+    }, pickedUp ? 250 : 1800);
   }
   function finishCourse() {
     game.state = 'courseDone';
@@ -2091,6 +2280,7 @@
       ${card(0, half, 'Out')}
       ${card(half, HOLES.length, 'In')}
       <p class="legend">Circle for birdie, double circle for eagle, square for bogey, double square for worse.</p>
+      <p class="best"><span class="stars">${starsHtml(3)}</span> ${game.stars.reduce((a, v) => a + (v || 0), 0)} of ${HOLES.length * 3} stars this round</p>
       <p class="best">${isNewBest ? '<strong>New best round</strong>' : `Your best round is <strong>${best}</strong>`}</p>`;
     showOverlay({
       eyebrow: `Round complete · ${HOLES.length} holes`,
@@ -2099,7 +2289,7 @@
       sub: `${total} strokes, par ${TOTAL_PAR}`,
       body,
       button: 'Back to menu',
-      onClick: () => { game.scores = []; game.shots = 0; showMenu(0); },
+      onClick: () => { game.scores = []; game.stars = []; game.shots = 0; showMenu(0); },
     });
   }
 
@@ -2143,6 +2333,7 @@
       shadowBlob.material.opacity = 0.28 * k;
     } else shadowBlob.visible = false;
 
+    camctl.classList.toggle('off', !(game.state === 'idle' || game.state === 'aiming'));
     updatePin();
     drawMini();
     renderer.render(scene, camera);
