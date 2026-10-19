@@ -577,6 +577,9 @@
       <button class="icon-btn" id="btnRestart" type="button" aria-label="Restart this hole">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v5h5"/></svg>
       </button>
+      <button class="icon-btn" id="btnHome" type="button" aria-label="Pause and menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+      </button>
       <button class="icon-btn" id="btnBoard" type="button" aria-label="Scoreboard">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4"/><path d="M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg>
       </button>
@@ -619,6 +622,16 @@
   </div>
 
   <footer class="tip" id="tip"><strong>Drag back</strong> anywhere on the screen, then let go to hit. No walls: the edge is the hazard</footer>
+
+  <div class="overlay" id="pause" hidden>
+    <div class="card" role="dialog" aria-label="Paused">
+      <p class="eyebrow" id="pauseEyebrow">Hole 1 · Par 3</p>
+      <h2>Paused</h2>
+      <p class="sub">Your round is kept. You can pick it up again from the menu.</p>
+      <button class="btn" id="pauseResume" type="button">Resume</button>
+      <div class="board-row-btns"><button class="btn ghost" id="pauseMenu" type="button">Back to menu</button></div>
+    </div>
+  </div>
 
   <div class="overlay" id="board" hidden>
     <div class="card board-card" role="dialog" aria-label="Scoreboard">
@@ -663,6 +676,7 @@
         <div class="menu-bottom">
           <button class="tap" id="btnPlay" type="button">Tap to play</button>
           <p class="menu-foot" id="menuBest">Par 56 · 12 holes</p>
+          <p class="menu-foot" id="menuRestart" hidden><button class="menu-chip" id="btnStartOver" type="button">Start a new round</button></p>
         </div>
       </section>
       <section class="page" id="pageSkins">
@@ -721,6 +735,7 @@
   const ov = { eyebrow: $('ovEyebrow'), title: $('ovTitle'), sub: $('ovSub'), body: $('ovBody'), btn: $('ovBtn') };
   const btnSound = $('btnSound');
   const btnRestart = $('btnRestart');
+  const btnHome = $('btnHome'), pauseEl = $('pause'), pauseEyebrow = $('pauseEyebrow'), pauseResume = $('pauseResume'), pauseMenu = $('pauseMenu'), menuRestart = $('menuRestart'), btnStartOver = $('btnStartOver');
   const btnBoard = $('btnBoard'), boardEl = $('board'), boardTable = $('boardTable'), boardRound = $('boardRound'), boardBest = $('boardBest'), boardStarCount = $('boardStarCount'), boardStars = $('boardStars'), boardClose = $('boardClose');
   const btnUndo = $('btnUndo'), undoDesc = $('undoDesc');
   const camctl = $('camctl'), camLeft = $('camLeft'), camRight = $('camRight'), camTop = $('camTop');
@@ -1915,8 +1930,30 @@
     menuBest.textContent = best === null ? `Par ${TOTAL_PAR} · ${HOLES.length} holes` : `Best round ${best} · Par ${TOTAL_PAR}`;
     menuSound.textContent = game.muted ? 'Sound off' : 'Sound on';
     switchTab('pagePlay');
+    const inRound = holeIndex > 0 || game.scores.some((v) => v != null) || game.strokes > 0;
+    btnPlay.textContent = inRound ? `Continue hole ${holeIndex + 1}` : 'Tap to play';
+    menuRestart.hidden = !inRound;
     renderLobby();
   }
+  btnStartOver.addEventListener('click', () => { initAudio(); game.scores = []; game.stars = []; game.shots = 0; showMenu(0); });
+  btnHome.addEventListener('click', () => {
+    if (game.state === 'menu' || game.state === 'courseDone') return;
+    initAudio();
+    if (game.state === 'intro') endIntro();
+    if (game.state === 'aiming') { aim = null; hideAim(); game.state = 'idle'; }
+    pauseEyebrow.textContent = `Hole ${game.holeIndex + 1} · ${cur.def.name} · Par ${cur.def.par} · ${game.strokes} stroke${game.strokes === 1 ? '' : 's'}`;
+    boardEl.hidden = true; overlay.hidden = true;
+    pauseEl.hidden = false;
+    pauseResume.focus({ preventScroll: true });
+  });
+  pauseResume.addEventListener('click', () => { pauseEl.hidden = true; });
+  pauseMenu.addEventListener('click', () => {
+    pauseEl.hidden = true;
+    // a finished hole result that was waiting for Next hole moves on; otherwise the current hole restarts from the tee
+    const idx = game.state === 'holeDone' && game.holeIndex < HOLES.length - 1 ? game.holeIndex + 1 : game.holeIndex;
+    if (game.state === 'holeDone' && game.holeIndex === HOLES.length - 1) { game.scores = []; game.stars = []; game.shots = 0; showMenu(0); return; }
+    showMenu(idx);
+  });
   function startFromMenu() {
     if (game.state !== 'menu') return;
     initAudio();
